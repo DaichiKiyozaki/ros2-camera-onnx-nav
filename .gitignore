@@ -16,9 +16,9 @@
 
 
 # for ROS,ROS2
-build/*
-install/*
-log/*
+**/build/*
+**/install/*
+**/log/*
 
 # for Python
 __pycache__/
