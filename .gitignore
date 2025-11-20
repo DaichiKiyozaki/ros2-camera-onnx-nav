@@ -1,0 +1,30 @@
+# General
+*~
+\#*#
+*.o
+\.nfs0000*
+\..*
+
+# tex
+*.aux
+*.dvi
+*.log
+*.synctex.gz
+*.pdf
+*.fdb_latexmk
+*.fls
+
+
+# for ROS,ROS2
+build/*
+install/*
+log/*
+
+# for Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/*
+
+# OpenAI Gym
+videos/*
