@@ -23,7 +23,9 @@ Unity上のエージェントをROS 2ノードで推論・制御するための�
 
 ## 使い方
 
-### AMCL + Map Server の起動
+### 1. Unityの再生
+
+### 2. AMCL + Map Server の起動
 `unity_amcl.launch.py` で地図と自己位置推定を起動します。`/amcl_pose` を発行します。
 
 ```bash
@@ -40,7 +42,12 @@ ros2 launch model_in_ros2node_pkg unity_amcl.launch.py
 - `base_frame_id` (default: `base_link`)
 - `scan_topic` (default: `/scan`)
 
-### ノードの起動
+### 3. rviz2で初期位置・目標位置を設定
+
+- 初期位置：2D Pose Estimate
+- 目標位置：2D Goal Pose
+
+### 4. ノードの起動
 推論エージェントノードを起動します。
 
 ```bash
@@ -59,7 +66,7 @@ ros2 run model_in_ros2node_pkg agent_node
 #### Published Topics (出力)
 | トピック名 | 型 | 説明 |
 | --- | --- | --- |
-| `/agent/cmd` | `std_msgs/Float32MultiArray` | 推論された行動コマンド (連続値)。 |
+| `/agent/cmd` | `std_msgs/Float32MultiArray` | 推論された行動コマンド (continuous)。 |
 | `/debug/stacked_image` | `sensor_msgs/Image` | デバッグ用。スタックしたフレームを横並びで可視化します。 |
 
 ## Unity側の設定
@@ -74,8 +81,3 @@ Unity側では `ros2-for-unity` を使用して、以下のデータをPublish�
 | --- | --- | --- |
 | `debug` | `true` | デバッグログと `/debug/stacked_image` の publish を有効化します。 |
 | `log_period_sec` | `1.0` | デバッグログの周期 (秒) です。 |
-
-## ディレクトリ構造
-- `src/model_in_ros2node_pkg`: 推論ノードのパッケージ
-  - `model_in_ros2node_pkg/agent_node.py`: 推論ロジックのメインスクリプト
-
