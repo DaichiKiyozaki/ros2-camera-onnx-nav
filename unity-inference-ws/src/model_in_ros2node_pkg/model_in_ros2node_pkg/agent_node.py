@@ -201,7 +201,8 @@ class AgentNode(Node):
 
         goal_heading = math.atan2(dy, dx)
         # 角度差を [-pi, pi] に正規化して度(degree)へ変換
-        signed_rad = self.wrap_to_pi(yaw - goal_heading)
+        # Unity の SignedAngle(targetDirection, forward, up) と同じ符号にするため goal_heading - yaw
+        signed_rad = self.wrap_to_pi(goal_heading - yaw)
         signed_deg = self.wrap_to_180_deg(math.degrees(signed_rad))
 
         return np.array([[signed_deg, d]], dtype=np.float32)
@@ -331,8 +332,14 @@ class AgentNode(Node):
                         img_shape = arr.shape
                     elif isinstance(arr, np.ndarray) and arr.ndim == 2:
                         vec_shape = arr.shape
+                
+                # Extract distance and angle from vec observation
+                angle_to_goal = float(vec[0, 0]) if vec.shape[1] >= 1 else 0.0
+                distance_to_goal = float(vec[0, 1]) if vec.shape[1] >= 2 else 0.0
+                
                 self.get_logger().info(
-                    f"infer_rate={rate:.1f} Hz, img={img_shape}, vec={vec_shape}, action=[{act_preview}]"
+                    f"infer_rate={rate:.1f} Hz, img={img_shape}, vec={vec_shape}, "
+                    f"vec_obs=[{angle_to_goal:.2f}°, {distance_to_goal:.3f}m], action=[{act_preview}]"
                 )
 
                 self._infer_count = 0
