@@ -193,7 +193,7 @@ class ImgSegmentationNode(Node):
         ops_dir_color = (0, 0, 255)       # 赤（同方向以外歩行者）
         other_color = (255, 255, 0)       # シアン（その他）
 
-        # 優先順位: その他 -> 走行可能領域 -> 同方向 -> 逆方向（歩行者が最優先で上書き）
+        # 優先順位(低→高): その他 < 走行可能領域 < 同方向 < 逆方向（歩行者が最優先で上書き）
         segmentation[:] = other_color
         segmentation[drivable_mask == 1] = road_color
         segmentation[same_dir_mask == 1] = same_dir_color
