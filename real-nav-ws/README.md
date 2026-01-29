@@ -1,10 +1,15 @@
-# ped_road_seg_pkg
+# real-nav-ws
 
-## 概要
+Unity ML-Agentsで学習した行動モデルを実機に適用するためのワークスペース
 
-カメラ画像から「走行可能領域（床）」と「歩行者（同方向/同方向以外）」を検出し、4値化したセグメンテーション画像（112×84, BGR8）を出力する。
+## ped_road_seg_pkg
 
-出力（/gb_img）の色（BGR）は以下。
+### 概要
+
+- カメラ画像から「走行可能領域（床）」と「歩行者（同方向/同方向以外）」を検出し、4値化セグメンテーション画像を出力する。
+- 学習環境を4値化し、実環境でも本パッケージで4値化した画像を行動モデルに入力することで、sim2realの視覚ギャップを軽減する。
+
+出力（`/gb_img`）の色（BGR）は以下。
 
 | クラス | 色(BGR) |
 | --- | --- |
@@ -13,7 +18,7 @@
 | 同方向以外歩行者（class 1 / ops-dir） | (0, 0, 255) <span style="display:inline-block;width:0.9em;height:0.9em;background:#ff0000;border:1px solid #999;vertical-align:middle"></span> |
 | その他 | (255, 255, 0) <span style="display:inline-block;width:0.9em;height:0.9em;background:#00ffff;border:1px solid #999;vertical-align:middle"></span> |
 
-## 開発環境
+### 開発環境
 
 - ROS 2
   - 開発環境：jazzy
@@ -29,9 +34,9 @@
 
 モデルは `src/ped_road_seg_pkg/resource/` に配置する。
 
-## 使用方法
+### 使用方法
 
-### 1) セットアップ & ビルド
+#### 1) セットアップ & ビルド
 
 ```bash
 cd /home/daichi-kiyozaki/ros_pj/real-nav-ws
@@ -46,7 +51,7 @@ python -m colcon build --packages-select ped_road_seg_pkg --symlink-install
 source install/setup.bash
 ```
 
-### 2) 起動
+#### 2) 起動
 
 カメラ（例）：
 
@@ -72,10 +77,10 @@ ros2 run ped_road_seg_pkg img_segmentation_node
 - Subscribe: `/image_raw`（sensor_msgs/Image, BGR8, 640×480想定）
 - Publish: `/gb_img`（sensor_msgs/Image, BGR8, 112×84）
 
-## 処理フロー
+### 処理フロー
 
 1. `/image_raw` を受信
 2. 床セグメンテーション（PyTorchモデルで床マスク生成）
 3. 歩行者seg（YOLO-segで class 0/1 のマスク生成、複数人はクラス別に統合）
 4. 4値化画像を作成（優先度: その他 → 床 → class 0 → class 1）
-5. 112×84 にリサイズして `/gb_img` を publish
+5. 行動モデルの入力画像サイズにリサイズして `/gb_img` を publish

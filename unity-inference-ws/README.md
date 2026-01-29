@@ -1,8 +1,9 @@
 # Unity-inference-ws
 
 ## 概要
-Unity上のエージェントをROS 2ノードで推論・制御するためのワークスペースです。
-`ros2-for-unity` を使用してUnityとROS 2間で通信を行い、ROS 2ノード上でONNXモデルを用いた推論を実行します。
+- Unity 上のエージェントを ROS 2 ノードで推論・制御するワークスペース
+- [ros2-for-unity](https://github.com/RobotecAI/ros2-for-unity) により Unity と ROS 2 間で通信
+- ROS 2 ノード上で ONNX モデル推論を実行
 
 ## 開発環境
 - ROS2 jazzy
@@ -14,7 +15,7 @@ Unity上のエージェントをROS 2ノードで推論・制御するための�
    - 環境地図
       - 配置先： `unity-inference-ws/src/model_in_ros2node_pkg/map`
       - .yamlと.pgmのセット
-      - 推論環境の地図をlaunch呼び出し時に指定、またはlaunchファイルのデフォルト値を書き換え
+      - 推論環境の地図は launch 呼び出し時に指定、または launch ファイルのデフォルト値を変更
    - rviz設定ファイル
       - 配置先： `unity-inference-ws/src/model_in_ros2node_pkg/rviz`
 
@@ -34,7 +35,7 @@ Unity上のエージェントをROS 2ノードで推論・制御するための�
 ### 1. Unityの再生
 
 ### 2. AMCL + Map Server の起動
-`unity_amcl.launch.py` で地図と自己位置推定を起動します。`/amcl_pose` を発行します。
+`unity_amcl.launch.py` で地図と自己位置推定を起動し、`/amcl_pose` を publish する。
 
 ```bash
 ros2 launch model_in_ros2node_pkg unity_amcl.launch.py
@@ -56,7 +57,7 @@ ros2 launch model_in_ros2node_pkg unity_amcl.launch.py
 - 目標位置：2D Goal Pose
 
 ### 4. ノードの起動
-推論エージェントノードを起動します。
+推論エージェントノードを起動する。
 
 ```bash
 ros2 run model_in_ros2node_pkg agent_node
@@ -67,25 +68,25 @@ ros2 run model_in_ros2node_pkg agent_node
 #### Subscribed Topics (入力)
 | トピック名 | 型 | 説明 |
 | --- | --- | --- |
-| `/unity/camera/image_raw` | `sensor_msgs/Image` | エージェントの視覚情報 (RGB)。ノード内で **112x84** にリサイズされます。 |
-| `/goal_pose` | `geometry_msgs/PoseStamped` | RViz2 の 2D Nav Goal。ゴール位置として使用します。 |
-| `/amcl_pose` | `geometry_msgs/PoseWithCovarianceStamped` | AMCL 推定の自己位置。ゴール相対角の計算に使用します。 |
+| `/unity/camera/image_raw` | `sensor_msgs/Image` | エージェントの視覚情報 (RGB)。ノード内で **112x84** にリサイズ。 |
+| `/goal_pose` | `geometry_msgs/PoseStamped` | RViz2 の 2D Nav Goal。ゴール位置として使用。 |
+| `/amcl_pose` | `geometry_msgs/PoseWithCovarianceStamped` | AMCL 推定の自己位置。ゴール相対角の計算に使用。 |
 
 #### Published Topics (出力)
 | トピック名 | 型 | 説明 |
 | --- | --- | --- |
 | `/agent/cmd` | `std_msgs/Float32MultiArray` | 推論された行動コマンド (continuous)。 |
-| `/debug/stacked_image` | `sensor_msgs/Image` | デバッグ用。スタックしたフレームを横並びで可視化します。 |
+| `/debug/stacked_image` | `sensor_msgs/Image` | デバッグ用。スタックしたフレームを横並びで可視化。 |
 
 ## Unity側の設定
-Unity側では `ros2-for-unity` を使用して、以下のデータをPublishしてください。
+Unity 側は `ros2-for-unity` を使用し、以下を publish 対象とする。
 
-1. **カメラ画像**: RGB形式。解像度は **112x84** を推奨します。
-2. **自己位置とゴール情報**: `/amcl_pose` と `/goal_pose` は ROS 側（AMCL/RViz2 など）で用意してください。
-3. **TF/座標系**: `map`/`odom`/`base_link` が一貫していることを確認してください。
+1. **カメラ画像**: RGB 形式。解像度は **112x84** を推奨。
+2. **自己位置とゴール情報**: `/amcl_pose` と `/goal_pose` は ROS 側（AMCL/RViz2 など）で用意。
+3. **TF/座標系**: 整合性が取れた`map`/`odom`/`base_link` をpublishする必要がある。
 
 ## パラメータ
 | 名前 | デフォルト | 説明 |
 | --- | --- | --- |
-| `debug` | `true` | デバッグログと `/debug/stacked_image` の publish を有効化します。 |
-| `log_period_sec` | `1.0` | デバッグログの周期 (秒) です。 |
+| `debug` | `true` | デバッグログと `/debug/stacked_image` の publish を有効化。 |
+| `log_period_sec` | `1.0` | デバッグログの周期 (秒)。 |
