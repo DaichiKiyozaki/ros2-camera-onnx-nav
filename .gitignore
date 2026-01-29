@@ -31,9 +31,6 @@
 # OpenAI Gym
 videos/*
 
-# MEBOW
-*/MEBOW/*
-
 # models
 *.pth
 *.pt
