@@ -1,6 +1,6 @@
 # real-nav-ws
 
-Unity ML-Agentsで学習した行動モデルを実機に適用するためのワークスペース
+行動モデルを実機に適用して目的地まで自律走行させるためのワークスペース
 
 ## ped_road_seg_pkg
 
@@ -13,14 +13,14 @@ Unity ML-Agentsで学習した行動モデルを実機に適用するための�
 
 | クラス | 色(BGR) |
 | --- | --- |
-| 走行可能領域（床） | (0, 255, 0) <span style="display:inline-block;width:0.9em;height:0.9em;background:#00ff00;border:1px solid #999;vertical-align:middle"></span> |
-| 同方向歩行者（class 0 / same-dir） | (255, 0, 0) <span style="display:inline-block;width:0.9em;height:0.9em;background:#0000ff;border:1px solid #999;vertical-align:middle"></span> |
-| 同方向以外歩行者（class 1 / ops-dir） | (0, 0, 255) <span style="display:inline-block;width:0.9em;height:0.9em;background:#ff0000;border:1px solid #999;vertical-align:middle"></span> |
-| その他 | (255, 255, 0) <span style="display:inline-block;width:0.9em;height:0.9em;background:#00ffff;border:1px solid #999;vertical-align:middle"></span> |
+| 走行可能領域（床） | 緑（0, 255, 0） |
+| 同方向歩行者（class 0 / same-dir） | 青（255, 0, 0） |
+| 同方向以外歩行者（class 1 / ops-dir） | 赤（0, 0, 255） |
+| その他 | シアン（255, 255, 0） |
 
 ### 開発環境
 
-- ROS 2
+- ROS2
   - 開発環境：jazzy
 - Python
   - 開発環境：Python 3.12.3

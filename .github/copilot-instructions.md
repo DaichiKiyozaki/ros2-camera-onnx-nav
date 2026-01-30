@@ -9,7 +9,7 @@
 - README は「です・ます調」を避け、箇条書きやテーブルを用いて見やすく書く
 
 ## 全体像（ワークスペースと役割）
-- `unity-inference-ws/`: ROS2-For-Unityを用いてUnity上でモデル推論する用のワークスペース
+- `unity-nav-ws/`: ROS2-For-Unityを用いてUnity上でモデル推論する用のワークスペース
 - `real-nav-ws/`: 学習モデルよる実機ナビゲーション用ワークスペース
 - `slam-params/`: Nav2 / AMCL / SLAM Toolbox などの YAML パラメータ置き場
 
