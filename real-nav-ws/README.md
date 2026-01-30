@@ -39,10 +39,10 @@
 
 モデルファイル（要配置）：
 
-- `resource/best_model_house2.pth`
-- `resource/yolo26s-seg_pedflow2cls.pt`
-
-モデルは `src/ped_road_seg_pkg/resource/` に配置する。
+- セマンティックセグメンテーションモデル
+  - 例：`models/best_model_house2.pth`
+- YOLO-seg（歩行者 + 向きカテゴリ）
+  - 例：`models/yolo26s-seg_pedflow2cls.pt`
 
 ### 使用方法
 

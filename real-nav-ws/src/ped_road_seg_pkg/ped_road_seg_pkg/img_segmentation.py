@@ -76,16 +76,23 @@ class ImgSegmentationNode(Node):
         self.segmentation_buffer = None
 
         try:
-            # モデルは package の share/resource から読み込む（必要ならパラメータで上書き）
+            # モデルは package の share/models から読み込む（必要ならファイル名/パスで上書き）
             share_dir = get_package_share_directory('ped_road_seg_pkg')
-            default_model_path = os.path.join(share_dir, 'resource', 'best_model_house2.pth')
-            default_yolo_path = os.path.join(share_dir, 'resource', 'yolo26s-seg_pedflow2cls.pt')
+            models_dir = os.path.join(share_dir, 'models')
+            default_model_file = 'best_model_house2.pth'
+            default_yolo_file = 'yolo26s-seg_pedflow2cls.pt'
 
-            self.declare_parameter('model_path', default_model_path)
-            self.declare_parameter('yolo_path', default_yolo_path)
+            self.declare_parameter('model_path', default_model_file)
+            self.declare_parameter('yolo_path', default_yolo_file)
 
-            model_path = self.get_parameter('model_path').value
-            yolo_path = self.get_parameter('yolo_path').value
+            def resolve_model_path(param_name: str) -> str:
+                value = str(self.get_parameter(param_name).value)
+                if os.path.isabs(value) or os.path.sep in value or (os.path.altsep and os.path.altsep in value):
+                    return value
+                return os.path.join(models_dir, value)
+
+            model_path = resolve_model_path('model_path')
+            yolo_path = resolve_model_path('yolo_path')
             
             self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
             self.get_logger().info(f"Device: {self.device}")

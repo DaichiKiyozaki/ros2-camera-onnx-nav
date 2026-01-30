@@ -24,6 +24,8 @@
 - リソース（models/map/rviz 等）:
   - `setup.py:data_files` で `share/<pkg>/...` にインストールする
   - 実行時は `ament_index_python` で探索する
+  - 行動モデルや画像認識モデルは `models/` 配下で管理し、`share/<pkg>/models` にインストールする
+  - `resource/` は ament index 用マーカーファイルのみを置く
 
 ## 検証ルール（変更提案時）
 - 検証コマンドを必ず提示する:

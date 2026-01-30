@@ -1,4 +1,6 @@
 from setuptools import find_packages, setup
+import os
+from glob import glob
 
 package_name = 'ped_road_seg_pkg'
 
@@ -6,12 +8,34 @@ setup(
     name=package_name,
     version='0.0.0',
     packages=find_packages(exclude=['test']),
-    data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + package_name]),
-        ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/resource', ['resource/best_model_house2.pth', 'resource/yolo26s-seg_pedflow2cls.pt']),
-    ],
+    data_files=(
+        lambda model_patterns: [
+            (
+                'share/ament_index/resource_index/packages',
+                ['resource/' + package_name],
+            ),
+            (
+                'share/' + package_name,
+                ['package.xml'],
+            ),
+            (
+                os.path.join('share', package_name, 'models'),
+                sorted(
+                    {
+                        model_path
+                        for pattern in model_patterns
+                        for model_path in glob(pattern)
+                    }
+                ),
+            ),
+        ]
+    )(
+        [
+            'models/*.pth',
+            'models/*.pt',
+            'models/*.onnx',
+        ]
+    ),
     install_requires=[
         'setuptools',
         'torch>=2.0.0',
