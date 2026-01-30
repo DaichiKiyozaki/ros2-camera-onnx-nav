@@ -14,8 +14,8 @@
 | クラス | 色(BGR) |
 | --- | --- |
 | 走行可能領域（床） | 緑（0, 255, 0） |
-| 同方向歩行者（class 0 / same-dir） | 青（255, 0, 0） |
-| 同方向以外歩行者（class 1 / ops-dir） | 赤（0, 0, 255） |
+| 同方向歩行者 | 青（255, 0, 0） |
+| 同方向以外歩行者 | 赤（0, 0, 255） |
 | その他 | シアン（255, 255, 0） |
 
 ### 開発環境
@@ -39,7 +39,7 @@
 #### 1) セットアップ & ビルド
 
 ```bash
-cd /home/daichi-kiyozaki/ros_pj/real-nav-ws
+cd /home/daichi-kiyozaki/ros2-workspaces/real-nav-ws
 
 python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
@@ -66,7 +66,7 @@ ros2 run v4l2_camera v4l2_camera_node \
 セグメンテーション：
 
 ```bash
-cd /home/daichi-kiyozaki/ros_pj/real-nav-ws
+cd /home/daichi-kiyozaki/ros2-workspaces/real-nav-ws
 source .venv/bin/activate
 source install/setup.bash
 ros2 run ped_road_seg_pkg img_segmentation_node

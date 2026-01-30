@@ -6,10 +6,6 @@
 - ROS2 ノード上で ONNX モデル推論を実行
 - 自己位置推定にamclを用いるため、環境地図を事前に用意する必要がある
 
-## 開発環境
-- ROS2 jazzy
-- Python 3.12
-
 ## セットアップ
 
 1. 環境地図とrvizの設定ファイルを追加
@@ -22,7 +18,7 @@
 
 2. ワークスペースのビルド
    ```bash
-   cd ~/ros_pj/unity-nav-ws
+   cd ~/ros2-workspaces/unity-nav-ws
    colcon build --symlink-install
    ```
 
