@@ -194,7 +194,7 @@ class Pedflow4ClsSegNode(Node):
                     cls_id = class_ids[idx] if idx < len(class_ids) else None
                     if cls_id == 0:  # 同方向
                         same_dir_mask = np.maximum(same_dir_mask, mask_pred)
-                    elif cls_id == 1:  # 同方向以外
+                    elif cls_id == 1:  # 逆方向
                         ops_dir_mask = np.maximum(ops_dir_mask, mask_pred)
 
         except Exception as e:
@@ -206,7 +206,7 @@ class Pedflow4ClsSegNode(Node):
         # 色定義(BGR)
         road_color = (0, 255, 0)          # 緑（走行可能領域）
         same_dir_color = (255, 0, 0)      # 青（同方向歩行者）
-        ops_dir_color = (0, 0, 255)       # 赤（同方向以外歩行者）
+        ops_dir_color = (0, 0, 255)       # 赤（逆方向歩行者）
         other_color = (255, 255, 0)       # シアン（その他）
 
         # 優先順位(低→高): その他 < 走行可能領域 < 同方向 < 逆方向（歩行者が最優先で上書き）
