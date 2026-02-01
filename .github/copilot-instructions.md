@@ -17,7 +17,7 @@
 
 ## 必須ワークフロー（各ワークスペース共通）
 - コマンドは必ず対象ワークスペース直下で実行する（リポジトリ直下で実行しない）。
-- ビルド: `colcon build --symlink-install`
+- ビルド: `python -m colcon build --symlink-install`
 - overlay順（必須）:
   - `source /opt/ros/jazzy/setup.bash`
   - `source <ws>/install/setup.bash`
@@ -29,17 +29,17 @@
 
 ## 検証ルール（変更提案時）
 - 検証コマンドを必ず提示する:
-  - `colcon build --packages-select <pkg>`
-  - `colcon test --packages-select <pkg> && colcon test-result --verbose`
+  - `python -m colcon build --packages-select <pkg>`
+  - `python -m colcon test --packages-select <pkg> && colcon test-result --verbose`
   - （該当する場合）`ros2 launch <pkg> <file>.launch.py`
 
 ## Python環境メモ
 - `python -m pip ...` を優先する。
-- `.venv/` がある場合、明示がない限り ROS2 とは別の補助ツール用途にのみ使用する。
-  - （rclpy 等、ROS2提供のPythonパッケージを壊さない）
+- `.venv/` はワークスペース単位で作成し、ROS2推論/開発でも基本的に使用する。
+- `.venv/` 有効化後に `python -m colcon build` を実行する。
 
 ## ドキュメント表記ルール
-- 絶対パス（例: `/home/...`）を書かない。相対パスまたは `~/ros2-workspaces/...` を使う。
+- 絶対パス（例: `/home/...`）を書かない。リポジトリルートからの相対パスのみを使う。
 
 ## 変更の安全性
 - 明示がない限り ROS API互換（トピック名・メッセージ型・QoS）を維持する。
@@ -50,3 +50,33 @@
 - Python依存: `requirements.txt` と/または `setup.py` の依存指定を更新し、再現手順も必要に応じてREADMEへ反映する。
 - ROS依存: `package.xml` を更新する（必要なら CMakeLists/setup も更新）。
 - 設定変更（yaml/launch）: 実行引数/手順/前提が変わる場合は該当READMEも更新する。
+
+## Code Rules（Python/ROS2）
+
+### Pythonスタイル
+- PEP 8 準拠
+
+### 命名規則
+- Python:
+  - module/file/function/variable: `snake_case`
+  - class: `PascalCase`
+  - constant: `UPPER_SNAKE_CASE`
+- ROS2:
+  - topic / parameter: `snake_case`（スラッシュ区切り）
+  - node名: `snake_case`
+  - frame_id: `base_link`, `odom`, `map` 等の慣例に寄せる
+
+### 型・Docstring
+- public関数（他ファイルから呼ぶ想定）には型ヒント必須。
+- `Optional` は `None` 処理を必ず明示し、早期returnで分岐を浅くする。
+- 複雑な関数のみ docstring（Args/Returns/Raises）を付与。
+
+### ログ・例外処理
+- ログ文言は英語。数値/ID（frame_id, topic, param名）を含めて調査可能にする。
+- 例外の握りつぶし禁止（`except Exception: pass` 禁止）。
+- 例外時は `logger.error(..., exc_info=True)` 相当の情報を残す。
+
+### ROS2（rclpy）実装ポリシー
+- パラメータは `declare_parameter` → `get_parameter` の順で扱う。
+- QoS は原則として明示（sensor系は SensorDataQoS 等）。
+- callback は軽量に保つ（推論/IOが重い場合はキュー/別スレッド等を検討し、少なくともブロッキングを避ける）。

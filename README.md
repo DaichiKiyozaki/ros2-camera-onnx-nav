@@ -1,4 +1,4 @@
-# Ros2_WorkSpaces
+# ros2-camera-onnx-nav
 
 開発した ROS2 ワークスペース/パラメータ類をまとめて管理するリポジトリ
 
@@ -10,6 +10,10 @@
 ## 開発環境
 - ROS2 jazzy
 - Python 3.12
+
+## 仮想環境
+- ワークスペース単位で `.venv` を作成して管理
+- `python -m colcon build` / `ros2 run` 実行前に `.venv` を有効化
 
 ## 用語
 
@@ -30,7 +34,7 @@
 
 ### パッケージ
 
-- `ped_road_seg_pkg`
+- `img_seg_pkg`
   - セマンティックセグメンテーション + fine-tuning した YOLO-seg を用いて、推論結果を 4値に整理
 
 ### 4値化のクラス・色

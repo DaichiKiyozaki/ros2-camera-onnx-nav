@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 import os
 from glob import glob
 
-package_name = 'ped_road_seg_pkg'
+package_name = 'img_seg_pkg'
 
 setup(
     name=package_name,
@@ -59,7 +59,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'img_segmentation_node = ped_road_seg_pkg.img_segmentation:main',
+            'pedflow_4cls_seg_node = img_seg_pkg.pedflow_4cls_seg_node:main',
         ],
     },
 )

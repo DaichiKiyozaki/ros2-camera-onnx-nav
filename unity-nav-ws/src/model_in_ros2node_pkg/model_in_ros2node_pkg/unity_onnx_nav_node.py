@@ -15,9 +15,9 @@ import math
 from rclpy.qos import qos_profile_sensor_data
 
 
-class AgentNode(Node):
+class UnityOnnxNavNode(Node):
     def __init__(self):
-        super().__init__('agent_node')
+        super().__init__('unity_onnx_nav_node')
 
         self.bridge = CvBridge()
 
@@ -380,5 +380,5 @@ class AgentNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = AgentNode()
+    node = UnityOnnxNavNode()
     rclpy.spin(node)

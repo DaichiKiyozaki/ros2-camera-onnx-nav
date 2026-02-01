@@ -2,7 +2,7 @@
 
 ## 概要
 - Unity 上のエージェントを ROS2 ノードで推論・制御するワークスペース
-- [ros2-for-unity](https://github.com/RobotecAI/ros2-for-unity) により Unity と ROS2 間で通信
+- [ROS2-For-Unity](https://github.com/RobotecAI/ros2-for-unity) により Unity と ROS2 間で通信
 - ROS2 ノード上で ONNX モデル推論を実行
 - 自己位置推定にamclを用いるため、環境地図を事前に用意する必要がある
 
@@ -19,13 +19,19 @@
 2. 行動モデル (ONNX) を追加
    - 配置先： `unity-nav-ws/src/model_in_ros2node_pkg/models`
    - 例: `unity-nav-ws/src/model_in_ros2node_pkg/models/balance.onnx`
-   - `agent_node` は `share/model_in_ros2node_pkg/models` から読み込むため、配置後にビルドが必要
+   - `unity_onnx_nav_node` は `share/model_in_ros2node_pkg/models` から読み込むため、配置後にビルドが必要
 
 3. ワークスペースのビルド
-   ```bash
-   cd ~/ros2-workspaces/unity-nav-ws
-   colcon build --symlink-install
-   ```
+    ```bash
+    cd unity-nav-ws
+    python3 -m venv .venv --system-site-packages
+    source .venv/bin/activate
+
+    python -m pip install --upgrade pip
+    python -m pip install -r requirements.txt
+
+    python -m colcon build --symlink-install
+    ```
 
 4. オーバーレイ
    ```bash
@@ -33,6 +39,11 @@
    ```
 
 ## 使い方
+
+### 仮想環境の運用
+
+- ワークスペース単位で `.venv` を作成して管理
+- 実行時は `.venv` を有効化してから `python -m colcon build` / `ros2 run` を実行
 
 ### 1. Unityの再生
 
@@ -62,13 +73,13 @@ ros2 launch model_in_ros2node_pkg unity_amcl.launch.py
 推論エージェントノードを起動する。
 
 ```bash
-ros2 run model_in_ros2node_pkg agent_node
+ros2 run model_in_ros2node_pkg unity_onnx_nav_node
 ```
 
 モデルに応じた主な起動パラメータ例:
 
 ```bash
-ros2 run model_in_ros2node_pkg agent_node --ros-args \
+ros2 run model_in_ros2node_pkg unity_onnx_nav_node --ros-args \
    -p model_file_name:=balance.onnx \
    -p stack_size:=5 \
    -p action_output_name:=continuous_actions
@@ -90,7 +101,7 @@ ros2 run model_in_ros2node_pkg agent_node --ros-args \
 | `/debug/stacked_image` | `sensor_msgs/Image` | デバッグ用。スタックしたフレームを横並びで可視化。 |
 
 ## Unity側の設定
-Unity 側は `ros2-for-unity` を使用し、以下を publish 対象とする。
+Unity 側は `ROS2-For-Unity` を使用し、以下を publish 対象とする。
 
 1. **カメラ画像**: RGB 形式。解像度は **112x84** を推奨。
 2. **自己位置とゴール情報**: `/amcl_pose` と `/goal_pose` は ROS 側（AMCL/RViz2 など）で用意。

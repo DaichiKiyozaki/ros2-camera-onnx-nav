@@ -1,4 +1,4 @@
-"""img_segmentation_node
+"""pedflow_4cls_seg_node
 
 - カメラ画像をsubscribeして、走行可能領域と歩行者マスクを推定する
 - 推定結果を色分けした画像としてpublishする
@@ -44,9 +44,9 @@ def get_preprocessing(preprocessing_fn):
     return albu.Compose(_transform)
 # ------------------------------------
 
-class ImgSegmentationNode(Node):
+class Pedflow4ClsSegNode(Node):
     def __init__(self):
-        super().__init__('img_segmentation_node')
+        super().__init__('pedflow_4cls_seg_node')
 
         # Parameters（呼び出し時に必要に応じて上書きする）
         self.declare_parameter('image_topic', '/image_raw')
@@ -77,7 +77,7 @@ class ImgSegmentationNode(Node):
 
         try:
             # モデルは package の share/models から読み込む（必要ならファイル名/パスで上書き）
-            share_dir = get_package_share_directory('ped_road_seg_pkg')
+            share_dir = get_package_share_directory('img_seg_pkg')
             models_dir = os.path.join(share_dir, 'models')
             default_model_file = 'best_model_house2.pth'
             default_yolo_file = 'yolo26s-seg_pedflow2cls.pt'
@@ -112,7 +112,7 @@ class ImgSegmentationNode(Node):
             # smp: segmentation_models_pytorch（セグメンテーションモデル/encoderの前処理ユーティリティ）
             # 学習時に使った encoder の前処理（正規化）を推論時にも揃えて、精度劣化を防ぐ
             encoder = 'resnet50'
-            encoder_weights = 'imagenet'
+            encoder_weights = 'ImageNet'
             self.preprocessing_fn = smp.encoders.get_preprocessing_fn(encoder, encoder_weights)
             self.augmentation = get_validation_augmentation()
             self.preprocessing = get_preprocessing(self.preprocessing_fn)
@@ -194,7 +194,7 @@ class ImgSegmentationNode(Node):
                     cls_id = class_ids[idx] if idx < len(class_ids) else None
                     if cls_id == 0:  # 同方向
                         same_dir_mask = np.maximum(same_dir_mask, mask_pred)
-                    elif cls_id == 1:  # 同方向以外
+                    elif cls_id == 1:  # 逆方向
                         ops_dir_mask = np.maximum(ops_dir_mask, mask_pred)
 
         except Exception as e:
@@ -206,7 +206,7 @@ class ImgSegmentationNode(Node):
         # 色定義(BGR)
         road_color = (0, 255, 0)          # 緑（走行可能領域）
         same_dir_color = (255, 0, 0)      # 青（同方向歩行者）
-        ops_dir_color = (0, 0, 255)       # 赤（同方向以外歩行者）
+        ops_dir_color = (0, 0, 255)       # 赤（逆方向歩行者）
         other_color = (255, 255, 0)       # シアン（その他）
 
         # 優先順位(低→高): その他 < 走行可能領域 < 同方向 < 逆方向（歩行者が最優先で上書き）
@@ -230,7 +230,7 @@ class ImgSegmentationNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    img_segmentation_node = ImgSegmentationNode()
-    rclpy.spin(img_segmentation_node)
-    img_segmentation_node.destroy_node()
+    pedflow_4cls_seg_node = Pedflow4ClsSegNode()
+    rclpy.spin(pedflow_4cls_seg_node)
+    pedflow_4cls_seg_node.destroy_node()
     rclpy.shutdown()
