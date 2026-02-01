@@ -112,7 +112,7 @@ class Pedflow4ClsSegNode(Node):
             # smp: segmentation_models_pytorch（セグメンテーションモデル/encoderの前処理ユーティリティ）
             # 学習時に使った encoder の前処理（正規化）を推論時にも揃えて、精度劣化を防ぐ
             encoder = 'resnet50'
-            encoder_weights = 'imagenet'
+            encoder_weights = 'ImageNet'
             self.preprocessing_fn = smp.encoders.get_preprocessing_fn(encoder, encoder_weights)
             self.augmentation = get_validation_augmentation()
             self.preprocessing = get_preprocessing(self.preprocessing_fn)
