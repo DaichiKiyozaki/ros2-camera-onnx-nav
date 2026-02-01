@@ -1,4 +1,4 @@
-# ROS2_WorkSpaces
+# ros2-camera-onnx-nav
 
 開発した ROS2 ワークスペース/パラメータ類をまとめて管理するリポジトリ
 
