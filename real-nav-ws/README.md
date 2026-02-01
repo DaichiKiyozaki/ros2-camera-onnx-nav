@@ -2,7 +2,7 @@
 
 行動モデルを実機に適用して目的地まで自律走行させるためのワークスペース
 
-## ped_road_seg_pkg
+## img_seg_pkg
 
 ### 概要
 
@@ -34,8 +34,8 @@
 
 - ROS2 jazzy
 - Python 3.12.3
-- CUDA Version: 13.0   
-- Python依存は [src/ped_road_seg_pkg/requirements.txt](src/ped_road_seg_pkg/requirements.txt) を参照
+- CUDA Version: 13.0
+- Python依存は [src/img_seg_pkg/requirements.txt](src/img_seg_pkg/requirements.txt) を参照
 
 モデルファイル（要配置）：
 
@@ -46,18 +46,23 @@
 
 ### 使用方法
 
+#### 仮想環境の運用
+
+- ワークスペース単位で `.venv` を作成して管理
+- 実行時は `.venv` を有効化してから `colcon build` / `ros2 run` を実行
+
 #### 1) セットアップ & ビルド
 
 ```bash
-cd ~/ros2-workspaces/real-nav-ws
+cd real-nav-ws
 
 python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
 
 python -m pip install --upgrade pip
-python -m pip install -r src/ped_road_seg_pkg/requirements.txt
+python -m pip install -r src/img_seg_pkg/requirements.txt
 
-python -m colcon build --packages-select ped_road_seg_pkg --symlink-install
+python -m colcon build --packages-select img_seg_pkg --symlink-install
 source install/setup.bash
 ```
 
@@ -76,10 +81,10 @@ ros2 run v4l2_camera v4l2_camera_node \
 セグメンテーション：
 
 ```bash
-cd ~/ros2-workspaces/real-nav-ws
+cd real-nav-ws
 source .venv/bin/activate
 source install/setup.bash
-ros2 run ped_road_seg_pkg img_segmentation_node
+ros2 run img_seg_pkg pedflow_4cls_seg_node
 ```
 
 トピック：

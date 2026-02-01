@@ -19,11 +19,11 @@
 2. 行動モデル (ONNX) を追加
    - 配置先： `unity-nav-ws/src/model_in_ros2node_pkg/models`
    - 例: `unity-nav-ws/src/model_in_ros2node_pkg/models/balance.onnx`
-   - `agent_node` は `share/model_in_ros2node_pkg/models` から読み込むため、配置後にビルドが必要
+   - `unity_onnx_nav_node` は `share/model_in_ros2node_pkg/models` から読み込むため、配置後にビルドが必要
 
 3. ワークスペースのビルド
    ```bash
-   cd ~/ros2-workspaces/unity-nav-ws
+   cd unity-nav-ws
    colcon build --symlink-install
    ```
 
@@ -62,13 +62,13 @@ ros2 launch model_in_ros2node_pkg unity_amcl.launch.py
 推論エージェントノードを起動する。
 
 ```bash
-ros2 run model_in_ros2node_pkg agent_node
+ros2 run model_in_ros2node_pkg unity_onnx_nav_node
 ```
 
 モデルに応じた主な起動パラメータ例:
 
 ```bash
-ros2 run model_in_ros2node_pkg agent_node --ros-args \
+ros2 run model_in_ros2node_pkg unity_onnx_nav_node --ros-args \
    -p model_file_name:=balance.onnx \
    -p stack_size:=5 \
    -p action_output_name:=continuous_actions

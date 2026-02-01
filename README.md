@@ -11,6 +11,10 @@
 - ROS2 jazzy
 - Python 3.12
 
+## 仮想環境
+- ワークスペース単位で `.venv` を作成して管理
+- `colcon build` / `ros2 run` 実行前に `.venv` を有効化
+
 ## 用語
 
 - 本リポジトリにおける「行動モデル」
@@ -30,7 +34,7 @@
 
 ### パッケージ
 
-- `ped_road_seg_pkg`
+- `img_seg_pkg`
   - セマンティックセグメンテーション + fine-tuning した YOLO-seg を用いて、推論結果を 4値に整理
 
 ### 4値化のクラス・色
