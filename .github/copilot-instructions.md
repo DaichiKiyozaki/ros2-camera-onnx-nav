@@ -17,7 +17,7 @@
 
 ## 必須ワークフロー（各ワークスペース共通）
 - コマンドは必ず対象ワークスペース直下で実行する（リポジトリ直下で実行しない）。
-- ビルド: `colcon build --symlink-install`
+- ビルド: `python -m colcon build --symlink-install`
 - overlay順（必須）:
   - `source /opt/ros/jazzy/setup.bash`
   - `source <ws>/install/setup.bash`
@@ -29,17 +29,17 @@
 
 ## 検証ルール（変更提案時）
 - 検証コマンドを必ず提示する:
-  - `colcon build --packages-select <pkg>`
-  - `colcon test --packages-select <pkg> && colcon test-result --verbose`
+  - `python -m colcon build --packages-select <pkg>`
+  - `python -m colcon test --packages-select <pkg> && colcon test-result --verbose`
   - （該当する場合）`ros2 launch <pkg> <file>.launch.py`
 
 ## Python環境メモ
 - `python -m pip ...` を優先する。
-- `.venv/` がある場合、明示がない限り ROS2 とは別の補助ツール用途にのみ使用する。
-  - （rclpy 等、ROS2提供のPythonパッケージを壊さない）
+- `.venv/` はワークスペース単位で作成し、ROS2推論/開発でも基本的に使用する。
+- `.venv/` 有効化後に `python -m colcon build` を実行する。
 
 ## ドキュメント表記ルール
-- 絶対パス（例: `/home/...`）を書かない。相対パスまたは `~/ros2-workspaces/...` を使う。
+- 絶対パス（例: `/home/...`）を書かない。リポジトリルートからの相対パス、または `~/ros2-workspaces/...` を使う。
 
 ## 変更の安全性
 - 明示がない限り ROS API互換（トピック名・メッセージ型・QoS）を維持する。

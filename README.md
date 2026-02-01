@@ -1,4 +1,4 @@
-# Ros2_WorkSpaces
+# ROS2_WorkSpaces
 
 開発した ROS2 ワークスペース/パラメータ類をまとめて管理するリポジトリ
 
@@ -13,7 +13,7 @@
 
 ## 仮想環境
 - ワークスペース単位で `.venv` を作成して管理
-- `colcon build` / `ros2 run` 実行前に `.venv` を有効化
+- `python -m colcon build` / `ros2 run` 実行前に `.venv` を有効化
 
 ## 用語
 

@@ -35,7 +35,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'unity_onnx_nav_node = model_in_ros2node_pkg.agent_node:main',
+            'unity_onnx_nav_node = model_in_ros2node_pkg.unity_onnx_nav_node:main',
         ],
     },
 )

@@ -49,7 +49,7 @@
 #### 仮想環境の運用
 
 - ワークスペース単位で `.venv` を作成して管理
-- 実行時は `.venv` を有効化してから `colcon build` / `ros2 run` を実行
+- 実行時は `.venv` を有効化してから `python -m colcon build` / `ros2 run` を実行
 
 #### 1) セットアップ & ビルド
 
