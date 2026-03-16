@@ -12,9 +12,13 @@ from cv_bridge import CvBridge
 import numpy as np
 import cv2
 import os
+import traceback
 from ament_index_python.packages import get_package_share_directory
 
 import torch
+# NOTE: segmentation_models_pytorch は pretrained 名が case-sensitive。
+# 利用可能な例: 'imagenet', 'ssl', 'swsl'
+encoder_weights = 'imagenet'
 import segmentation_models_pytorch as smp
 import albumentations as albu
 from ultralytics import YOLO
@@ -112,14 +116,17 @@ class Pedflow4ClsSegNode(Node):
             # smp: segmentation_models_pytorch（セグメンテーションモデル/encoderの前処理ユーティリティ）
             # 学習時に使った encoder の前処理（正規化）を推論時にも揃えて、精度劣化を防ぐ
             encoder = 'resnet50'
-            encoder_weights = 'ImageNet'
+            encoder_weights = 'imagenet'
             self.preprocessing_fn = smp.encoders.get_preprocessing_fn(encoder, encoder_weights)
             self.augmentation = get_validation_augmentation()
             self.preprocessing = get_preprocessing(self.preprocessing_fn)
 
         except Exception as e:
-            self.get_logger().error(f"Failed to load model or setup preprocessing: {e}")
-            raise e
+            self.get_logger().error(
+                "Failed to load model or setup preprocessing: "
+                f"{e}\n{traceback.format_exc()}"
+            )
+            raise
 
     def image_callback(self, msg):
         # 画像受信 -> (走行可能領域seg + 歩行者seg) -> 色分け画像を publish
