@@ -38,3 +38,7 @@ videos/*
 
 # vscode
 .vscode/
+
+# extra
+real-nav-ws/kobuki-jazzy-env/
+logs/

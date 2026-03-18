@@ -24,11 +24,10 @@
 3. ワークスペースのビルド
     ```bash
     cd unity-nav-ws
-    python3 -m venv .venv --system-site-packages
-    source .venv/bin/activate
+   source ../.venv/bin/activate
 
     python -m pip install --upgrade pip
-    python -m pip install -r requirements.txt
+   python -m pip install -r ../requirements.txt
 
     python -m colcon build --symlink-install
     ```
@@ -42,8 +41,9 @@
 
 ### 仮想環境の運用
 
-- ワークスペース単位で `.venv` を作成して管理
-- 実行時は `.venv` を有効化してから `python -m colcon build` / `ros2 run` を実行
+- 仮想環境はリポジトリ直下の `../.venv` を共通利用
+- 実行時は `source ../.venv/bin/activate` 後に `python -m colcon build` / `ros2 run` を実行
+- 容量不足（`[Errno 28] No space left on device`）時は `python -m pip cache purge` でキャッシュ削除
 
 ### 1. Unityの再生
 

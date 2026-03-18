@@ -58,16 +58,25 @@ class Pedflow4ClsSegNode(Node):
         self.declare_parameter('queue_size', 10)
         self.declare_parameter('yolo_confidence', 0.55)
         self.declare_parameter('yolo_imgsz', 512)
+        self.declare_parameter('yolo_verbose', False)
         self.declare_parameter('out_width', 112)
         self.declare_parameter('out_height', 84)
+        self.declare_parameter('max_segmentation_hz', 10.0)
 
         self.image_topic = self.get_parameter('image_topic').value
         self.output_topic = self.get_parameter('output_topic').value
         self.queue_size = int(self.get_parameter('queue_size').value)
         self.confidence = float(self.get_parameter('yolo_confidence').value)
         self.yolo_imgsz = int(self.get_parameter('yolo_imgsz').value)
+        self.yolo_verbose = bool(self.get_parameter('yolo_verbose').value)
         self.out_width = int(self.get_parameter('out_width').value)
         self.out_height = int(self.get_parameter('out_height').value)
+        self.max_segmentation_hz = float(self.get_parameter('max_segmentation_hz').value)
+
+        if self.max_segmentation_hz < 0.0:
+            raise ValueError(f"max_segmentation_hz must be >= 0.0: {self.max_segmentation_hz}")
+        self._min_seg_period_sec = (1.0 / self.max_segmentation_hz) if self.max_segmentation_hz > 0.0 else 0.0
+        self._last_seg_accept_ns = 0
 
         self.publisher_ = self.create_publisher(Image, self.output_topic, self.queue_size)
         self.subscription = self.create_subscription(
@@ -75,6 +84,10 @@ class Pedflow4ClsSegNode(Node):
             self.image_topic,
             self.image_callback,
             self.queue_size)
+
+        self.get_logger().info(
+            f"max_segmentation_hz={self.max_segmentation_hz:.3f} (0.0 means unlimited)"
+        )
         
         self.bridge = CvBridge()
         self.segmentation_buffer = None
@@ -130,6 +143,13 @@ class Pedflow4ClsSegNode(Node):
 
     def image_callback(self, msg):
         # 画像受信 -> (走行可能領域seg + 歩行者seg) -> 色分け画像を publish
+        now_ns = self.get_clock().now().nanoseconds
+        if self._min_seg_period_sec > 0.0 and self._last_seg_accept_ns > 0:
+            elapsed_sec = (now_ns - self._last_seg_accept_ns) / 1e9
+            if elapsed_sec < self._min_seg_period_sec:
+                return
+        self._last_seg_accept_ns = now_ns
+
         try:
             frame = self.bridge.imgmsg_to_cv2(msg, "bgr8")
         except Exception as e:
@@ -186,6 +206,7 @@ class Pedflow4ClsSegNode(Node):
                     conf=self.confidence,
                     retina_masks=True,
                     stream=False,
+                    verbose=self.yolo_verbose,
                 )[0]
 
             if yolo_results.boxes is not None and yolo_results.masks is not None:

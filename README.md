@@ -11,6 +11,31 @@
 - ROS2 jazzy
 - Python 3.12
 
+## Python 仮想環境（共通）
+
+- 仮想環境はリポジトリ直下の `.venv/` を共通利用
+- 生成（初回のみ）
+
+```bash
+cd .
+python3 -m venv .venv --system-site-packages
+source .venv/bin/activate
+python -m pip install --upgrade pip
+```
+
+- 各ワークスペースで作業するときは、対象ワークスペース直下へ移動してから有効化
+
+```bash
+cd unity-nav-ws
+source ../.venv/bin/activate
+```
+
+```bash
+cd real-nav-ws
+source ../.venv/bin/activate
+```
+```
+
 ## 想定する行動モデル
 
 - Unity ML-Agents を用いて学習した深層強化学習モデル (ONNX)
