@@ -5,6 +5,7 @@ import numpy as np
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import PointStamped
 from std_msgs.msg import Float32MultiArray
 from cv_bridge import CvBridge
 import cv2
@@ -35,6 +36,11 @@ class UnityOnnxNavNode(Node):
         self._last_goal_log_time = self.get_clock().now()
         self._last_amcl_log_time = self.get_clock().now()
 
+        # クリックで追加するウェイポイント（map フレーム想定）
+        self.waypoints_xy = []
+        self.current_waypoint_index = 0
+        self._warned_clicked_point_frame_mismatch = False
+
         # parameters
         self.declare_parameter('debug', True)
         self.declare_parameter('log_period_sec', 1.0)
@@ -45,6 +51,9 @@ class UnityOnnxNavNode(Node):
         self.declare_parameter('stack_size', 5)
         # ベクトル観測の要素数（[angle_deg, distance_m] を基本に不足は 0 埋め、超過は切り捨て）
         self.declare_parameter('vec_obs_dim', 2)
+        self.declare_parameter('clicked_point_topic', '/clicked_point')
+        self.declare_parameter('waypoint_reach_threshold_m', 0.4)
+        self.declare_parameter('clear_waypoints_on_new_goal', False)
 
         self.debug = bool(self.get_parameter('debug').value)
         self.log_period_sec = float(self.get_parameter('log_period_sec').value)
@@ -52,6 +61,9 @@ class UnityOnnxNavNode(Node):
         self.img_height = int(self.get_parameter('img_height').value)
         self.stack_size = int(self.get_parameter('stack_size').value)
         self.vec_obs_dim = int(self.get_parameter('vec_obs_dim').value)
+        self.clicked_point_topic = str(self.get_parameter('clicked_point_topic').value)
+        self.waypoint_reach_threshold_m = float(self.get_parameter('waypoint_reach_threshold_m').value)
+        self.clear_waypoints_on_new_goal = bool(self.get_parameter('clear_waypoints_on_new_goal').value)
 
         if self.img_width <= 0 or self.img_height <= 0:
             raise ValueError(f"img_width/img_height must be > 0: ({self.img_width}, {self.img_height})")
@@ -59,6 +71,10 @@ class UnityOnnxNavNode(Node):
             raise ValueError(f"stack_size must be > 0: {self.stack_size}")
         if self.vec_obs_dim <= 0:
             raise ValueError(f"vec_obs_dim must be > 0: {self.vec_obs_dim}")
+        if self.waypoint_reach_threshold_m <= 0.0:
+            raise ValueError(
+                f"waypoint_reach_threshold_m must be > 0.0: {self.waypoint_reach_threshold_m}"
+            )
 
         # 画像フレームバッファ（deque）
         self.frame_buffer = deque(maxlen=self.stack_size)
@@ -70,6 +86,11 @@ class UnityOnnxNavNode(Node):
 
         # Subscribe：RViz2 の 2D Nav Goal（標準は /goal_pose）
         self.sub_goal_pose = self.create_subscription(PoseStamped, '/goal_pose', self.cb_goal_pose, 10)
+
+        # Subscribe：RViz2 Publish Point（/clicked_point）をウェイポイントとして追加
+        self.sub_clicked_point = self.create_subscription(
+            PointStamped, self.clicked_point_topic, self.cb_clicked_point, 10
+        )
 
         # Subscribe：AMCL の自己位置
         # nav2_amcl は QoS が SensorData 互換なので受信ミスを防ぐため sensor_data プロファイルを使用
@@ -153,12 +174,42 @@ class UnityOnnxNavNode(Node):
         self.last_goal_stamp = msg.header.stamp
         self.goal_count += 1
 
+        if self.clear_waypoints_on_new_goal:
+            self.clear_waypoints('new /goal_pose received')
+
         now = self.get_clock().now()
         if self.debug and (self.goal_count == 1 or (now - self._last_goal_log_time).nanoseconds / 1e9 >= self.log_period_sec):
             self.get_logger().info(
                 f"goal updated #{self.goal_count}: frame_id='{frame}', goal=({goal_x:.3f},{goal_y:.3f}), stamp={msg.header.stamp.sec}.{msg.header.stamp.nanosec:09d}"
             )
             self._last_goal_log_time = now
+
+    def cb_clicked_point(self, msg: PointStamped):
+        frame = (msg.header.frame_id or "").strip()
+        if frame != 'map':
+            if not self._warned_clicked_point_frame_mismatch:
+                self.get_logger().warn(
+                    f"Ignoring {self.clicked_point_topic} frame_id='{frame}' (expected: 'map')."
+                )
+                self._warned_clicked_point_frame_mismatch = True
+            return
+
+        x = float(msg.point.x)
+        y = float(msg.point.y)
+        self.waypoints_xy.append(np.array([x, y], dtype=np.float32))
+
+        total = len(self.waypoints_xy)
+        remaining = max(0, total - self.current_waypoint_index)
+        self.get_logger().info(
+            f"waypoint added: ({x:.3f},{y:.3f}), total={total}, remaining={remaining}"
+        )
+
+    def clear_waypoints(self, reason: str = ''):
+        prev_total = len(self.waypoints_xy)
+        self.waypoints_xy = []
+        self.current_waypoint_index = 0
+        if prev_total > 0 and self.debug:
+            self.get_logger().info(f"waypoints cleared ({reason}), previous_total={prev_total}")
 
     def cb_amcl_pose(self, msg: PoseWithCovarianceStamped):
         # frame_id は map を想定（異なる場合は警告だけ出す：TF変換は未実装）
@@ -209,6 +260,40 @@ class UnityOnnxNavNode(Node):
         a = (angle_deg + 180.0) % 360.0 - 180.0
         return float(a)
 
+    def _advance_waypoint_if_reached(self):
+        if self.robot_xyyaw is None:
+            return
+
+        rx, ry = float(self.robot_xyyaw[0]), float(self.robot_xyyaw[1])
+
+        while self.current_waypoint_index < len(self.waypoints_xy):
+            wp = self.waypoints_xy[self.current_waypoint_index]
+            dx = float(wp[0]) - rx
+            dy = float(wp[1]) - ry
+            dist = math.sqrt(dx * dx + dy * dy)
+
+            if dist > self.waypoint_reach_threshold_m:
+                break
+
+            reached_index = self.current_waypoint_index + 1
+            self.current_waypoint_index += 1
+            remaining = max(0, len(self.waypoints_xy) - self.current_waypoint_index)
+            self.get_logger().info(
+                f"waypoint reached: index={reached_index}, dist={dist:.3f} m, remaining={remaining}"
+            )
+
+    def get_target_xy(self):
+        """
+        次の目標点を返す。
+        - 未到達ウェイポイントがあれば最優先
+        - 無ければ最終目的地（/goal_pose）
+        """
+        self._advance_waypoint_if_reached()
+
+        if self.current_waypoint_index < len(self.waypoints_xy):
+            return self.waypoints_xy[self.current_waypoint_index], 'waypoint'
+        return self.goal_xy, 'goal'
+
     def compute_goal_vector(self) -> np.ndarray:
         """
         Unity学習時と同じ (1,2) ベクトル観測 [方向(deg), 距離d] を基準に返す
@@ -219,7 +304,8 @@ class UnityOnnxNavNode(Node):
         if self.goal_xy is None or self.robot_xyyaw is None:
             return np.zeros((1, self.vec_obs_dim), dtype=np.float32)
 
-        goal_x, goal_y = float(self.goal_xy[0]), float(self.goal_xy[1])
+        target_xy, _ = self.get_target_xy()
+        goal_x, goal_y = float(target_xy[0]), float(target_xy[1])
         rx, ry, yaw = float(self.robot_xyyaw[0]), float(self.robot_xyyaw[1]), float(self.robot_xyyaw[2])
 
         dx = goal_x - rx
@@ -368,9 +454,13 @@ class UnityOnnxNavNode(Node):
                 # Extract distance and angle from vec observation
                 angle_to_goal = float(vec[0, 0]) if vec.shape[1] >= 1 else 0.0
                 distance_to_goal = float(vec[0, 1]) if vec.shape[1] >= 2 else 0.0
+
+                _, target_kind = self.get_target_xy()
+                remaining_waypoints = max(0, len(self.waypoints_xy) - self.current_waypoint_index)
                 
                 self.get_logger().info(
                     f"infer_rate={rate:.1f} Hz, img={img_shape}, vec={vec_shape}, "
+                    f"target={target_kind}, remaining_waypoints={remaining_waypoints}, "
                     f"vec_obs=[{angle_to_goal:.2f}°, {distance_to_goal:.3f}m], action=[{act_preview}]"
                 )
 
