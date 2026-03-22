@@ -63,7 +63,7 @@ class RealOnnxNavNode(Node):
         self.declare_parameter('img_height', 84)
         self.declare_parameter('stack_size', 5)
         self.declare_parameter('vec_obs_dim', 2)
-        self.declare_parameter('waypoint_reach_threshold_m', 0.4)
+        self.declare_parameter('waypoint_reach_threshold_m', 0.6)
 
         self.debug = bool(self.get_parameter('debug').value)
         self.log_model_io = bool(self.get_parameter('log_model_io').value)
