@@ -120,6 +120,9 @@ ros2 run img_seg_pkg pedflow_4cls_seg_node --ros-args \
 - `real_onnx_nav_node` は `/goal_pose` と `/amcl_pose` が揃って初めて目標相対ベクトルを計算
 - `/amcl_pose` が無い場合は自己位置を 0 埋め扱いで推論し、挙動が不安定になりやすい
 - 実運用は map_server + amcl を先に起動する
+- 推論トリガーは従来どおり `/goal_pose`
+- RViz2 の Publish Point（`/clicked_point`）でウェイポイントを任意個追加可能（0個でも動作）
+- 距離・角度は「次の未到達ウェイポイント（無ければ最終目的地）」に対して計算
 
 ### リソース配置
 
@@ -175,13 +178,6 @@ source kobuki-jazzy-env/install/setup.bash
 
 ros2 run urg_node urg_node_driver --ros-args \
   --params-file src/onnx_nav_pkg/urg/urg.yaml
-```
-
-確認コマンド:
-
-```bash
-ros2 topic hz /scan
-ros2 topic echo /odom --once
 ```
 
 ### 推論ノード起動
@@ -241,34 +237,16 @@ ros2 launch onnx_nav_pkg real_nav_bringup.launch.py \
 
 `No tf data. Actual error: Frame [map] does not exist` が出る場合の例（LiDAR取付TFを仮設定）:
 
-```bash
-ros2 launch onnx_nav_pkg real_nav_bringup.launch.py \
-  map:=src/onnx_nav_pkg/map/my_map.yaml \
-  model_file_name:=balance.onnx \
-  video_device:=/dev/video2 \
-  image_size:="[640,480]" \
-  pixel_format:=YUYV \
-  max_segmentation_hz:=10.0 \
-  use_static_base_to_laser_tf:=true \
-  use_base_to_base_link_alias_tf:=true \
-  base_frame_id:=base \
-  base_link_frame_id:=base_link \
-  laser_frame_id:=laser \
-  static_tf_x:=0.2 \
-  static_tf_y:=0.0 \
-  static_tf_z:=0.15 \
-  static_tf_yaw:=0.0 \
-  static_tf_pitch:=0.0 \
-  static_tf_roll:=0.0
-```
 
 ### パラメータ（推論ノード）
 
 - `image_topic`（default: `/cb_img`）
 - `goal_pose_topic`（default: `/goal_pose`）
+- `clicked_point_topic`（default: `/clicked_point`）
 - `amcl_pose_topic`（default: `/amcl_pose`）
 - `action_topic`（default: `/agent/cmd`）
 - `max_inference_hz`（default: `10.0`、0.0 は無制限）
+- `waypoint_reach_threshold_m`（default: `0.4`）
 
 ### 通信仕様（推論ノード）
 
@@ -276,6 +254,7 @@ ros2 launch onnx_nav_pkg real_nav_bringup.launch.py \
 | --- | --- | --- | --- |
 | Subscribe | `/cb_img` | `sensor_msgs/Image` | セグメンテーション後の入力画像 |
 | Subscribe | `/goal_pose` | `geometry_msgs/PoseStamped` | 目標位置 |
+| Subscribe | `/clicked_point` | `geometry_msgs/PointStamped` | RViz2 Publish Pointで追加するウェイポイント |
 | Subscribe | `/amcl_pose` | `geometry_msgs/PoseWithCovarianceStamped` | 自己位置 |
 | Publish | `/agent/cmd` | `std_msgs/Float32MultiArray` | 推論行動 |
 | Publish | `/debug/stacked_image` | `sensor_msgs/Image` | デバッグ用スタック画像 |

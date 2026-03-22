@@ -11,6 +11,7 @@ import onnxruntime as ort
 import rclpy
 from ament_index_python.packages import get_package_share_directory
 from cv_bridge import CvBridge
+from geometry_msgs.msg import PointStamped
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from rclpy.node import Node
@@ -39,15 +40,21 @@ class RealOnnxNavNode(Node):
         self._last_goal_log_time = self.get_clock().now()
         self._last_amcl_log_time = self.get_clock().now()
 
+        # clicked_point で追加するウェイポイント列（map frame前提）
+        self.waypoints_xy = []
+        self.current_waypoint_index = 0
+        self._warned_clicked_point_frame_mismatch = False
+
         # ノード設定パラメータ
-        self.declare_parameter('debug', True)
-        self.declare_parameter('log_model_io', True)
+        self.declare_parameter('debug', False)
+        self.declare_parameter('log_model_io', False)
         self.declare_parameter('log_period_sec', 1.0)
-        self.declare_parameter('write_model_io_file', True)
+        self.declare_parameter('write_model_io_file', False)
         self.declare_parameter('model_io_log_dir', 'logs/model_io')
         self.declare_parameter('model_io_log_every_n', 1)
         self.declare_parameter('image_topic', '/cb_img')
         self.declare_parameter('goal_pose_topic', '/goal_pose')
+        self.declare_parameter('clicked_point_topic', '/clicked_point')
         self.declare_parameter('amcl_pose_topic', '/amcl_pose')
         self.declare_parameter('action_topic', '/agent/cmd')
         self.declare_parameter('max_inference_hz', 10.0)
@@ -56,6 +63,7 @@ class RealOnnxNavNode(Node):
         self.declare_parameter('img_height', 84)
         self.declare_parameter('stack_size', 5)
         self.declare_parameter('vec_obs_dim', 2)
+        self.declare_parameter('waypoint_reach_threshold_m', 0.4)
 
         self.debug = bool(self.get_parameter('debug').value)
         self.log_model_io = bool(self.get_parameter('log_model_io').value)
@@ -65,6 +73,7 @@ class RealOnnxNavNode(Node):
         self.model_io_log_every_n = int(self.get_parameter('model_io_log_every_n').value)
         self.image_topic = str(self.get_parameter('image_topic').value)
         self.goal_pose_topic = str(self.get_parameter('goal_pose_topic').value)
+        self.clicked_point_topic = str(self.get_parameter('clicked_point_topic').value)
         self.amcl_pose_topic = str(self.get_parameter('amcl_pose_topic').value)
         self.action_topic = str(self.get_parameter('action_topic').value)
         self.max_inference_hz = float(self.get_parameter('max_inference_hz').value)
@@ -72,6 +81,7 @@ class RealOnnxNavNode(Node):
         self.img_height = int(self.get_parameter('img_height').value)
         self.stack_size = int(self.get_parameter('stack_size').value)
         self.vec_obs_dim = int(self.get_parameter('vec_obs_dim').value)
+        self.waypoint_reach_threshold_m = float(self.get_parameter('waypoint_reach_threshold_m').value)
 
         if self.max_inference_hz < 0.0:
             raise ValueError(f'max_inference_hz must be >= 0.0: {self.max_inference_hz}')
@@ -85,6 +95,10 @@ class RealOnnxNavNode(Node):
             raise ValueError(f'stack_size must be > 0: {self.stack_size}')
         if self.vec_obs_dim <= 0:
             raise ValueError(f'vec_obs_dim must be > 0: {self.vec_obs_dim}')
+        if self.waypoint_reach_threshold_m <= 0.0:
+            raise ValueError(
+                f'waypoint_reach_threshold_m must be > 0.0: {self.waypoint_reach_threshold_m}'
+            )
         if self.model_io_log_every_n <= 0:
             raise ValueError(f'model_io_log_every_n must be > 0: {self.model_io_log_every_n}')
 
@@ -103,6 +117,12 @@ class RealOnnxNavNode(Node):
             qos_profile_sensor_data,
         )
         self.sub_goal_pose = self.create_subscription(PoseStamped, self.goal_pose_topic, self.cb_goal_pose, 10)
+        self.sub_clicked_point = self.create_subscription(
+            PointStamped,
+            self.clicked_point_topic,
+            self.cb_clicked_point,
+            10,
+        )
         self.sub_amcl_pose = self.create_subscription(
             PoseWithCovarianceStamped,
             self.amcl_pose_topic,
@@ -172,6 +192,7 @@ class RealOnnxNavNode(Node):
 
         self.get_logger().info(f'Subscribed image topic: {self.image_topic}')
         self.get_logger().info(f'Subscribed goal topic: {self.goal_pose_topic}')
+        self.get_logger().info(f'Subscribed waypoint topic: {self.clicked_point_topic}')
         self.get_logger().info(f'Subscribed amcl topic: {self.amcl_pose_topic}')
         self.get_logger().info(f'Published action topic: {self.action_topic}')
         self.get_logger().info(f'max_inference_hz={self.max_inference_hz:.3f} (0.0 means unlimited)')
@@ -300,6 +321,27 @@ class RealOnnxNavNode(Node):
             )
             self._last_amcl_log_time = now
 
+    def cb_clicked_point(self, msg: PointStamped) -> None:
+        # RViz Publish Point をウェイポイントとして追加
+        frame = (msg.header.frame_id or '').strip()
+        if frame != 'map':
+            if not self._warned_clicked_point_frame_mismatch:
+                self.get_logger().warn(
+                    f"Ignoring {self.clicked_point_topic} frame_id='{frame}' (expected: 'map')."
+                )
+                self._warned_clicked_point_frame_mismatch = True
+            return
+
+        x = float(msg.point.x)
+        y = float(msg.point.y)
+        self.waypoints_xy.append(np.array([x, y], dtype=np.float32))
+
+        total = len(self.waypoints_xy)
+        remaining = max(0, total - self.current_waypoint_index)
+        self.get_logger().info(
+            f'waypoint added: ({x:.3f},{y:.3f}), total={total}, remaining={remaining}'
+        )
+
     @staticmethod
     def quat_to_yaw(x: float, y: float, z: float, w: float) -> float:
         siny_cosp = 2.0 * (w * z + x * y)
@@ -316,12 +358,43 @@ class RealOnnxNavNode(Node):
         wrapped = (angle_deg + 180.0) % 360.0 - 180.0
         return float(wrapped)
 
+    def _advance_waypoint_if_reached(self) -> None:
+        if self.robot_xyyaw is None:
+            return
+
+        rx = float(self.robot_xyyaw[0])
+        ry = float(self.robot_xyyaw[1])
+
+        while self.current_waypoint_index < len(self.waypoints_xy):
+            waypoint = self.waypoints_xy[self.current_waypoint_index]
+            dx = float(waypoint[0]) - rx
+            dy = float(waypoint[1]) - ry
+            dist = math.sqrt(dx * dx + dy * dy)
+
+            if dist > self.waypoint_reach_threshold_m:
+                break
+
+            reached_index = self.current_waypoint_index + 1
+            self.current_waypoint_index += 1
+            remaining = max(0, len(self.waypoints_xy) - self.current_waypoint_index)
+            self.get_logger().info(
+                f'waypoint reached: index={reached_index}, dist={dist:.3f} m, remaining={remaining}'
+            )
+
+    def get_target_xy(self) -> tuple[np.ndarray, str]:
+        self._advance_waypoint_if_reached()
+
+        if self.current_waypoint_index < len(self.waypoints_xy):
+            return self.waypoints_xy[self.current_waypoint_index], 'waypoint'
+        return self.goal_xy, 'goal'
+
     def compute_goal_vector(self) -> np.ndarray:
         # [goal方向(deg), goal距離(m)] をベクトル観測として返す
         if self.goal_xy is None or self.robot_xyyaw is None:
             return np.zeros((1, self.vec_obs_dim), dtype=np.float32)
 
-        goal_x, goal_y = float(self.goal_xy[0]), float(self.goal_xy[1])
+        target_xy, _ = self.get_target_xy()
+        goal_x, goal_y = float(target_xy[0]), float(target_xy[1])
         rx, ry, yaw = (
             float(self.robot_xyyaw[0]),
             float(self.robot_xyyaw[1]),
@@ -463,9 +536,12 @@ class RealOnnxNavNode(Node):
 
                 angle_to_goal = float(vec[0, 0]) if vec.shape[1] >= 1 else 0.0
                 distance_to_goal = float(vec[0, 1]) if vec.shape[1] >= 2 else 0.0
+                _, target_kind = self.get_target_xy()
+                remaining_waypoints = max(0, len(self.waypoints_xy) - self.current_waypoint_index)
 
                 self.get_logger().info(
                     f'infer_rate={rate:.1f} Hz, img={img_shape}, vec={vec_shape}, '
+                    f'target={target_kind}, remaining_waypoints={remaining_waypoints}, '
                     f'vec_obs=[{angle_to_goal:.2f}°, {distance_to_goal:.3f}m], '
                     f'action=[{act_preview}]'
                 )
