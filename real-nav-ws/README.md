@@ -61,7 +61,7 @@ source ../.venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r ../requirements.txt
 
-python -m colcon build --packages-select img_seg_pkg --symlink-install
+python -m colcon build --symlink-install
 source install/setup.bash
 ```
 
