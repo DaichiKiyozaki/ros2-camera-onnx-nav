@@ -8,6 +8,7 @@
 """
 
 from collections import deque
+from typing import Any
 
 import cv2
 import numpy as np
@@ -46,8 +47,35 @@ class FrameStackPreprocessor:
         return np.concatenate(frames_vis, axis=1)
 
 
-def create_onnx_session(model_path: str) -> ort.InferenceSession:
-    return ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+def create_onnx_session(model_path: str, logger: Any | None = None) -> ort.InferenceSession:
+    try:
+        ort.preload_dlls(directory='')
+    except Exception as exc:
+        if logger is not None:
+            logger.warn(f'onnxruntime preload_dlls failed: {exc}')
+
+    available_providers = ort.get_available_providers()
+    requested_providers = ['CPUExecutionProvider']
+    if 'CUDAExecutionProvider' in available_providers:
+        requested_providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+
+    try:
+        session = ort.InferenceSession(model_path, providers=requested_providers)
+    except Exception as exc:
+        if logger is not None and 'CUDAExecutionProvider' in requested_providers:
+            logger.warn(
+                f'Failed to initialize CUDAExecutionProvider: {exc}. Falling back to CPUExecutionProvider.'
+            )
+        session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+
+    if logger is not None:
+        logger.info(
+            'ONNX Runtime provider setup: '
+            f'available={available_providers}, '
+            f'selected={session.get_providers()}'
+        )
+
+    return session
 
 
 def select_action_output_name(output_names: list[str], param_action: str) -> str:

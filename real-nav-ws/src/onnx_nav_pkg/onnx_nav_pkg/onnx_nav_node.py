@@ -110,7 +110,7 @@ class RealOnnxNavNode(Node):
         if not model_file_name:
             model_file_name = 'balance.onnx'
         model_path = os.path.join(share_dir, 'models', model_file_name)
-        self.session = create_onnx_session(model_path)
+        self.session = create_onnx_session(model_path, logger=self.get_logger())
 
         self.inputs = self.session.get_inputs()
         self.input_names = [i.name for i in self.inputs]

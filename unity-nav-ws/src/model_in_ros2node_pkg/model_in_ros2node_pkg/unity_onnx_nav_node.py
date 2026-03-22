@@ -110,7 +110,30 @@ class UnityOnnxNavNode(Node):
         if not model_file_name:
             model_file_name = 'balance.onnx'
         model_path = os.path.join(share_dir, 'models', model_file_name)
-        self.session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+        try:
+            ort.preload_dlls(directory='')
+        except Exception as exc:
+            self.get_logger().warn(f'onnxruntime preload_dlls failed: {exc}')
+
+        available_providers = ort.get_available_providers()
+        requested_providers = ['CPUExecutionProvider']
+        if 'CUDAExecutionProvider' in available_providers:
+            requested_providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+
+        try:
+            self.session = ort.InferenceSession(model_path, providers=requested_providers)
+        except Exception as exc:
+            if 'CUDAExecutionProvider' in requested_providers:
+                self.get_logger().warn(
+                    f'Failed to initialize CUDAExecutionProvider: {exc}. Falling back to CPUExecutionProvider.'
+                )
+            self.session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+
+        self.get_logger().info(
+            'ONNX Runtime provider setup: '
+            f'available={available_providers}, '
+            f'selected={self.session.get_providers()}'
+        )
 
         # ONNX 入出力情報をログ出力
         self.inputs = self.session.get_inputs()

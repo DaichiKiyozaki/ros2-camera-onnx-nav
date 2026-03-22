@@ -2,8 +2,8 @@
 # Use from each workspace:
 #   python -m pip install -r ../requirements.txt
 
-# Unity navigation workspace
-onnxruntime
+# ONNX Inference
+onnxruntime-gpu
 
 # Shared / real robot navigation workspace
 numpy>=1.21.0,<2.0.0
