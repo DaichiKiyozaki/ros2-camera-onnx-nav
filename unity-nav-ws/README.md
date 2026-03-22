@@ -23,13 +23,13 @@
 
 3. ワークスペースのビルド
     ```bash
-    cd unity-nav-ws
+   cd unity-nav-ws
    source ../.venv/bin/activate
 
-    python -m pip install --upgrade pip
+   python -m pip install --upgrade pip
    python -m pip install -r ../requirements.txt
 
-    python -m colcon build --symlink-install
+   python -m colcon build --symlink-install
     ```
 
 4. オーバーレイ
