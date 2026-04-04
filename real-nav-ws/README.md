@@ -35,7 +35,7 @@
 - ROS2 jazzy
 - Python 3.12.3
 - CUDA Version: 13.0
-- Python依存は [src/img_seg_pkg/requirements.txt](src/img_seg_pkg/requirements.txt) を参照
+- Python依存は [../requirements.txt](../requirements.txt) を参照
 
 モデルファイル（要配置）：
 
@@ -48,21 +48,20 @@
 
 #### 仮想環境の運用
 
-- ワークスペース単位で `.venv` を作成して管理
-- 実行時は `.venv` を有効化してから `python -m colcon build` / `ros2 run` を実行
+- 仮想環境はリポジトリ直下の `../.venv` を共通利用
+- 実行時は `source ../.venv/bin/activate` 後に `python -m colcon build` / `ros2 run` を実行
 
 #### 1) セットアップ & ビルド
 
 ```bash
 cd real-nav-ws
 
-python3 -m venv .venv --system-site-packages
-source .venv/bin/activate
+source ../.venv/bin/activate
 
 python -m pip install --upgrade pip
-python -m pip install -r src/img_seg_pkg/requirements.txt
+python -m pip install -r ../requirements.txt
 
-python -m colcon build --packages-select img_seg_pkg --symlink-install
+python -m colcon build --symlink-install
 source install/setup.bash
 ```
 
@@ -82,9 +81,16 @@ ros2 run v4l2_camera v4l2_camera_node \
 
 ```bash
 cd real-nav-ws
-source .venv/bin/activate
+source ../.venv/bin/activate
 source install/setup.bash
 ros2 run img_seg_pkg pedflow_4cls_seg_node
+```
+
+デフォルトは 10 Hz。周期を変更する場合の例：
+
+```bash
+ros2 run img_seg_pkg pedflow_4cls_seg_node --ros-args \
+  -p max_segmentation_hz:=10.0
 ```
 
 トピック：
@@ -99,3 +105,156 @@ ros2 run img_seg_pkg pedflow_4cls_seg_node
 3. 歩行者seg（YOLO-segで class 0/1 のマスク生成、複数人はクラス別に統合）
 4. 4値化画像を作成（優先度: その他 → 床 → class 0 → class 1）
 5. 行動モデルの入力画像サイズにリサイズして `/gb_img` を publish
+
+## onnx_nav_pkg
+
+### 概要
+
+- 実機向け ONNX 行動モデル推論パッケージ
+- 推論には AMCL による自己位置推定（`/amcl_pose`）が前提
+- ノード名: `real_onnx_nav_node`
+- パッケージ名: `onnx_nav_pkg`
+
+### 必須前提（AMCL + 地図）
+
+- `real_onnx_nav_node` は `/goal_pose` と `/amcl_pose` が揃って初めて目標相対ベクトルを計算
+- `/amcl_pose` が無い場合は自己位置を 0 埋め扱いで推論し、挙動が不安定になりやすい
+- 実運用は map_server + amcl を先に起動する
+- 推論トリガーは従来どおり `/goal_pose`
+- RViz2 の Publish Point（`/clicked_point`）でウェイポイントを任意個追加可能（0個でも動作）
+- 距離・角度は「次の未到達ウェイポイント（無ければ最終目的地）」に対して計算
+
+### リソース配置
+
+- 行動モデル（ONNX）
+  - `src/onnx_nav_pkg/models/*.onnx`
+- 地図（AMCL 用）
+  - `src/onnx_nav_pkg/map/my_map.yaml`
+  - `src/onnx_nav_pkg/map/my_map.pgm`（または `.png`）
+- RViz 設定
+  - `src/onnx_nav_pkg/rviz/real_nav_default.rviz`
+
+### AMCL 起動
+
+- launch ファイル: `real_amcl.launch.py`
+- 役割: `map_server` + `amcl` + `nav2_lifecycle_manager`（必要時 `rviz2`）
+
+```bash
+cd real-nav-ws
+source ../.venv/bin/activate
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+
+ros2 launch onnx_nav_pkg real_amcl.launch.py \
+  map:=src/onnx_nav_pkg/map/my_map.yaml \
+  rviz:=true
+```
+
+### 実機ドライバ起動（Kobuki + URG）
+
+- `kobuki_node` はワークスペース外の環境オーバーレイを利用
+- URG のパラメータは `src/onnx_nav_pkg/urg/urg.yaml` を使用
+- 先に Kobuki と URG を起動し、`/odom` と `/scan` を有効化してから AMCL / ナビゲーションを起動
+
+ターミナル1（Kobuki）:
+
+```bash
+cd real-nav-ws
+source ../.venv/bin/activate
+source /opt/ros/jazzy/setup.bash
+source kobuki-jazzy-env/install/setup.bash
+
+ros2 run kobuki_node kobuki_ros_node --ros-args \
+  -p device_port:=/dev/ttyUSB0
+```
+
+ターミナル2（URG）:
+
+```bash
+cd real-nav-ws
+source ../.venv/bin/activate
+source /opt/ros/jazzy/setup.bash
+source kobuki-jazzy-env/install/setup.bash
+
+ros2 run urg_node urg_node_driver --ros-args \
+  --params-file src/onnx_nav_pkg/urg/urg.yaml
+```
+
+### 推論ノード起動
+
+```bash
+cd real-nav-ws
+source ../.venv/bin/activate
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+
+ros2 run onnx_nav_pkg real_onnx_nav_node --ros-args \
+  -p model_file_name:=balance.onnx \
+  -p image_topic:=/cb_img \
+  -p action_topic:=/agent/cmd \
+  -p stack_size:=5
+```
+
+### 一括起動（カメラ + セグメンテーション + AMCL + ONNX-nav）
+
+- launch ファイル: `real_nav_bringup.launch.py`
+- 起動対象
+  - `v4l2_camera_node`
+  - `img_seg_pkg/pedflow_4cls_seg_node`
+  - `onnx_nav_pkg/real_amcl.launch.py`（map_server + amcl + lifecycle_manager）
+  - `onnx_nav_pkg/real_onnx_nav_node`
+
+```bash
+cd real-nav-ws
+source ../.venv/bin/activate
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+
+ros2 launch onnx_nav_pkg real_nav_bringup.launch.py \
+  map:=src/onnx_nav_pkg/map/my_map.yaml \
+  model_file_name:=balance.onnx \
+  video_device:=/dev/video2 \
+  image_size:="[640,480]" \
+  pixel_format:=YUYV \
+  max_segmentation_hz:=10.0
+```
+
+主な起動引数:
+
+- `use_camera` / `use_segmentation` / `use_localization` / `use_navigation`
+- `camera_topic`（default: `/image_raw`）
+- `cb_topic`（default: `/cb_img`）
+- `scan_topic`（default: `/scan`）
+- `base_frame_id`（default: `base`）
+- `use_base_to_base_link_alias_tf`（default: `true`）
+- `base_link_frame_id`（default: `base_link`）
+- `rviz`（default: `true`）
+- `map`（default: `src/onnx_nav_pkg/map/my_map.yaml` を想定）
+- `model_file_name`（default: `balance.onnx`）
+- `use_static_base_to_laser_tf`（default: `true`）
+- `laser_frame_id`（default: `laser`）
+- `static_tf_x` / `static_tf_y` / `static_tf_z` / `static_tf_yaw` / `static_tf_pitch` / `static_tf_roll`
+
+`No tf data. Actual error: Frame [map] does not exist` が出る場合の例（LiDAR取付TFを仮設定）:
+
+
+### パラメータ（推論ノード）
+
+- `image_topic`（default: `/cb_img`）
+- `goal_pose_topic`（default: `/goal_pose`）
+- `clicked_point_topic`（default: `/clicked_point`）
+- `amcl_pose_topic`（default: `/amcl_pose`）
+- `action_topic`（default: `/agent/cmd`）
+- `max_inference_hz`（default: `10.0`、0.0 は無制限）
+- `waypoint_reach_threshold_m`（default: `0.4`）
+
+### 通信仕様（推論ノード）
+
+| 種別 | トピック | 型 | 用途 |
+| --- | --- | --- | --- |
+| Subscribe | `/cb_img` | `sensor_msgs/Image` | セグメンテーション後の入力画像 |
+| Subscribe | `/goal_pose` | `geometry_msgs/PoseStamped` | 目標位置 |
+| Subscribe | `/clicked_point` | `geometry_msgs/PointStamped` | RViz2 Publish Pointで追加するウェイポイント |
+| Subscribe | `/amcl_pose` | `geometry_msgs/PoseWithCovarianceStamped` | 自己位置 |
+| Publish | `/agent/cmd` | `std_msgs/Float32MultiArray` | 推論行動 |
+| Publish | `/debug/stacked_image` | `sensor_msgs/Image` | デバッグ用スタック画像 |
