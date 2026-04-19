@@ -149,7 +149,9 @@ class RealOnnxNavNode(Node):
             node_name=self.get_name(),
             action_output_name=self.action_output_name,
             input_names=self.input_names,
+            input_shapes=self.input_shapes,
             output_names=self.output_names,
+            output_shapes=self.output_shapes,
             runtime_providers=runtime_providers,
             runtime_device=runtime_device,
             logger=self.get_logger(),
@@ -283,8 +285,6 @@ class RealOnnxNavNode(Node):
             vec,
             action,
             target_xy=target_xy,
-            target_kind=target_kind,
-            goal_xy=self.target_tracker.goal_xy,
             robot_xyyaw=self.target_tracker.robot_xyyaw,
             logger=self.get_logger(),
         )

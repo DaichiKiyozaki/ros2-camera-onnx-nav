@@ -1,4 +1,5 @@
-from typing import Optional
+from collections import deque
+from typing import Deque, Optional
 
 import rclpy
 from geometry_msgs.msg import Twist
@@ -22,6 +23,8 @@ class ActionToTwistNode(Node):
         self.declare_parameter('allow_backward', False)
         self.declare_parameter('publish_rate_hz', 10.0)
         self.declare_parameter('command_timeout_sec', 0.5)
+        self.declare_parameter('enable_action_smoothing', False)
+        self.declare_parameter('smoothing_window_frames', 5)
 
         self.action_topic = str(self.get_parameter('action_topic').value)
         self.cmd_vel_topic = str(self.get_parameter('cmd_vel_topic').value)
@@ -34,6 +37,8 @@ class ActionToTwistNode(Node):
         self.allow_backward = bool(self.get_parameter('allow_backward').value)
         self.publish_rate_hz = float(self.get_parameter('publish_rate_hz').value)
         self.command_timeout_sec = float(self.get_parameter('command_timeout_sec').value)
+        self.enable_action_smoothing = bool(self.get_parameter('enable_action_smoothing').value)
+        self.smoothing_window_frames = int(self.get_parameter('smoothing_window_frames').value)
 
         if self.linear_index < 0 or self.angular_index < 0:
             raise ValueError('linear_index/angular_index must be >= 0')
@@ -41,6 +46,8 @@ class ActionToTwistNode(Node):
             raise ValueError(f'publish_rate_hz must be > 0.0: {self.publish_rate_hz}')
         if self.command_timeout_sec <= 0.0:
             raise ValueError(f'command_timeout_sec must be > 0.0: {self.command_timeout_sec}')
+        if self.smoothing_window_frames <= 0:
+            raise ValueError(f'smoothing_window_frames must be > 0: {self.smoothing_window_frames}')
 
         # /agent/cmd(Float32MultiArray) を受けて /commands/velocity(Twist) を出力
         self.pub_cmd_vel = self.create_publisher(Twist, self.cmd_vel_topic, 10)
@@ -50,6 +57,8 @@ class ActionToTwistNode(Node):
         self.last_linear_x = 0.0
         self.last_angular_z = 0.0
         self.last_action_time: Optional[rclpy.time.Time] = None
+        self.linear_history: Deque[float] = deque(maxlen=self.smoothing_window_frames)
+        self.angular_history: Deque[float] = deque(maxlen=self.smoothing_window_frames)
 
         self.timer = self.create_timer(1.0 / self.publish_rate_hz, self.on_timer)
 
@@ -58,6 +67,10 @@ class ActionToTwistNode(Node):
         self.get_logger().info(
             f'scale(linear,angular)=({self.linear_scale:.3f},{self.angular_scale:.3f}), '
             f'max(linear,angular)=({self.max_linear_x:.3f},{self.max_angular_z:.3f})'
+        )
+        self.get_logger().info(
+            f'action smoothing: enabled={self.enable_action_smoothing}, '
+            f'window_frames={self.smoothing_window_frames}'
         )
 
     def cb_action(self, msg: Float32MultiArray) -> None:
@@ -86,6 +99,12 @@ class ActionToTwistNode(Node):
         linear_x = max(-self.max_linear_x, min(self.max_linear_x, linear_x))
         angular_z = max(-self.max_angular_z, min(self.max_angular_z, angular_z))
 
+        if self.enable_action_smoothing:
+            self.linear_history.append(linear_x)
+            self.angular_history.append(angular_z)
+            linear_x = float(sum(self.linear_history) / len(self.linear_history))
+            angular_z = float(sum(self.angular_history) / len(self.angular_history))
+
         self.last_linear_x = linear_x
         self.last_angular_z = angular_z
         self.last_action_time = self.get_clock().now()
@@ -104,6 +123,8 @@ class ActionToTwistNode(Node):
         if age_sec > self.command_timeout_sec:
             self.last_linear_x = 0.0
             self.last_angular_z = 0.0
+            self.linear_history.clear()
+            self.angular_history.clear()
 
         twist.linear.x = float(self.last_linear_x)
         twist.angular.z = float(self.last_angular_z)
