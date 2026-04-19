@@ -132,6 +132,8 @@ class RealOnnxNavNode(Node):
         self.output_names = [o.name for o in self.outputs]
         self.output_shapes = [o.shape for o in self.outputs]
         self.get_logger().info(f'ONNX outputs: {list(zip(self.output_names, self.output_shapes))}')
+        runtime_providers = list(self.session.get_providers())
+        runtime_device = 'gpu' if any('CUDAExecutionProvider' == p for p in runtime_providers) else 'cpu'
 
         param_action = str(self.get_parameter('action_output_name').value or '').strip()
         self.action_output_name = select_action_output_name(self.output_names, param_action)
@@ -148,6 +150,8 @@ class RealOnnxNavNode(Node):
             action_output_name=self.action_output_name,
             input_names=self.input_names,
             output_names=self.output_names,
+            runtime_providers=runtime_providers,
+            runtime_device=runtime_device,
             logger=self.get_logger(),
             stamp_ns_provider=lambda: int(self.get_clock().now().nanoseconds),
         )
@@ -232,7 +236,7 @@ class RealOnnxNavNode(Node):
                 self.get_logger().warn(f'Failed to publish debug image: {exc}')
 
         vec = self.target_tracker.compute_goal_vector(self.get_logger())
-        _, target_kind = self.target_tracker.get_target_xy(self.get_logger())
+        target_xy, target_kind = self.target_tracker.get_target_xy(self.get_logger())
 
         # 最終ゴールに近づいたら（同じしきい値）推論を停止し、停止コマンドをpublish
         if self.target_tracker.robot_xyyaw is not None and vec.shape[1] >= 2:
@@ -278,6 +282,8 @@ class RealOnnxNavNode(Node):
             feed,
             vec,
             action,
+            target_xy=target_xy,
+            target_kind=target_kind,
             goal_xy=self.target_tracker.goal_xy,
             robot_xyyaw=self.target_tracker.robot_xyyaw,
             logger=self.get_logger(),

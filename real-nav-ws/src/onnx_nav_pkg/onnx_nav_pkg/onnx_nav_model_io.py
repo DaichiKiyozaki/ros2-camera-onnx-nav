@@ -24,7 +24,11 @@ class ModelIoFileLogger:
         node_name: str,
         action_output_name: str,
         input_names: list[str],
+        input_shapes: list[list[int | str | None]],
         output_names: list[str],
+        output_shapes: list[list[int | str | None]],
+        runtime_providers: list[str],
+        runtime_device: str,
         logger: Any,
         stamp_ns_provider: Callable[[], int],
     ) -> None:
@@ -34,7 +38,11 @@ class ModelIoFileLogger:
         self.node_name = node_name
         self.action_output_name = action_output_name
         self.input_names = input_names
+        self.input_shapes = input_shapes
         self.output_names = output_names
+        self.output_shapes = output_shapes
+        self.runtime_providers = runtime_providers
+        self.runtime_device = runtime_device
         self._stamp_ns_provider = stamp_ns_provider
 
         self._file_log_count = 0
@@ -58,9 +66,17 @@ class ModelIoFileLogger:
         start_record = {
             'event': 'start',
             'node': self.node_name,
+            'runtime_device': self.runtime_device,
+            'runtime_providers': self.runtime_providers,
             'action_output_name': self.action_output_name,
-            'input_names': self.input_names,
-            'output_names': self.output_names,
+            'inputs': [
+                {'name': name, 'shape': shape}
+                for name, shape in zip(self.input_names, self.input_shapes)
+            ],
+            'outputs': [
+                {'name': name, 'shape': shape}
+                for name, shape in zip(self.output_names, self.output_shapes)
+            ],
         }
 
         with self._file_log_path.open('w', encoding='utf-8') as fp:
@@ -87,7 +103,7 @@ class ModelIoFileLogger:
         vec: np.ndarray,
         action: np.ndarray,
         *,
-        goal_xy: np.ndarray | None,
+        target_xy: np.ndarray | None,
         robot_xyyaw: np.ndarray | None,
         logger: Any,
     ) -> None:
@@ -98,22 +114,17 @@ class ModelIoFileLogger:
         if self._file_log_count % self.every_n != 0:
             return
 
-        feed_stats = {}
-        for name, arr in feed.items():
-            if isinstance(arr, np.ndarray):
-                feed_stats[name] = self._arr_stats(arr)
-            else:
-                feed_stats[name] = {'type': type(arr).__name__}
-
         record = {
             'event': 'inference',
             'stamp_ns': int(self._stamp_ns_provider()),
-            'goal_xy': goal_xy.tolist() if goal_xy is not None else None,
+            'target_xy': target_xy.tolist() if target_xy is not None else None,
             'robot_xyyaw': robot_xyyaw.tolist() if robot_xyyaw is not None else None,
-            'vec_obs': [float(v) for v in vec.reshape(-1).tolist()],
-            'feed': feed_stats,
-            'action_output_name': self.action_output_name,
-            'action': [float(v) for v in action.tolist()],
+            'input': {
+                'vec_obs': [float(v) for v in vec.reshape(-1).tolist()],
+            },
+            'output': {
+                'action': [float(v) for v in action.tolist()],
+            },
         }
 
         try:
