@@ -14,6 +14,7 @@ from rclpy.node import Node
 @dataclass(frozen=True)
 class OnnxNavConfig:
     debug: bool
+    io_debug: bool
     log_model_io: bool
     log_period_sec: float
     write_model_io_file: bool
@@ -35,6 +36,7 @@ class OnnxNavConfig:
 
 def declare_nav_parameters(node: Node) -> None:
     node.declare_parameter('debug', False)
+    node.declare_parameter('io_debug', False)
     node.declare_parameter('log_model_io', False)
     node.declare_parameter('log_period_sec', 1.0)
     node.declare_parameter('write_model_io_file', False)
@@ -57,6 +59,7 @@ def declare_nav_parameters(node: Node) -> None:
 def load_nav_config(node: Node) -> OnnxNavConfig:
     cfg = OnnxNavConfig(
         debug=bool(node.get_parameter('debug').value),
+        io_debug=bool(node.get_parameter('io_debug').value),
         log_model_io=bool(node.get_parameter('log_model_io').value),
         log_period_sec=float(node.get_parameter('log_period_sec').value),
         write_model_io_file=bool(node.get_parameter('write_model_io_file').value),

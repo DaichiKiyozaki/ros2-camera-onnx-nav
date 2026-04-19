@@ -246,6 +246,7 @@ ros2 launch onnx_nav_pkg real_nav_bringup.launch.py \
 - `amcl_pose_topic`（default: `/amcl_pose`）
 - `action_topic`（default: `/agent/cmd`）
 - `max_inference_hz`（default: `10.0`、0.0 は無制限）
+- `io_debug`（default: `false`、`true` で入力/出力の具体値プレビューをログ出力）
 - `waypoint_reach_threshold_m`（default: `0.4`）
 
 ### 通信仕様（推論ノード）

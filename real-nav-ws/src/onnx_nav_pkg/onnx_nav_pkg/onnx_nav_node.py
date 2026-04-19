@@ -32,6 +32,12 @@ from .onnx_nav_target_tracker import TargetTracker
 
 
 class RealOnnxNavNode(Node):
+    @staticmethod
+    def _format_array_preview(arr: np.ndarray, sample_size: int = 8) -> str:
+        flat = arr.reshape(-1)
+        sample = ','.join([f'{float(v):.4f}' for v in flat[:sample_size]])
+        return f'shape={arr.shape},dtype={arr.dtype},sample=[{sample}]'
+
     def __init__(self) -> None:
         super().__init__('real_onnx_nav_node')
 
@@ -42,6 +48,7 @@ class RealOnnxNavNode(Node):
         cfg = load_nav_config(self)
 
         self.debug = cfg.debug
+        self.io_debug = cfg.io_debug
         self.log_model_io = cfg.log_model_io
         self.log_period_sec = cfg.log_period_sec
         self.write_model_io_file = cfg.write_model_io_file
@@ -78,6 +85,7 @@ class RealOnnxNavNode(Node):
         # デバッグ統計
         self._infer_count = 0
         self._last_log_time = self.get_clock().now()
+        self._last_io_debug_log_time = self.get_clock().now()
 
         # 入力トピック（画像/ゴール/自己位置）
         self.sub_cam = self.create_subscription(
@@ -148,6 +156,7 @@ class RealOnnxNavNode(Node):
         self.get_logger().info(f'Subscribed amcl topic: {self.amcl_pose_topic}')
         self.get_logger().info(f'Published action topic: {self.action_topic}')
         self.get_logger().info(f'max_inference_hz={self.max_inference_hz:.3f} (0.0 means unlimited)')
+        self.get_logger().info(f'io_debug={self.io_debug}')
 
     def cb_goal_pose(self, msg: PoseStamped) -> None:
         self.target_tracker.handle_goal_pose(
@@ -243,6 +252,28 @@ class RealOnnxNavNode(Node):
             robot_xyyaw=self.target_tracker.robot_xyyaw,
             logger=self.get_logger(),
         )
+
+        if self.io_debug:
+            now = self.get_clock().now()
+            io_elapsed = (now - self._last_io_debug_log_time).nanoseconds / 1e9
+            if io_elapsed >= max(0.1, self.log_period_sec):
+                feed_preview = []
+                for name, arr in feed.items():
+                    if isinstance(arr, np.ndarray):
+                        feed_preview.append(f'{name}:{self._format_array_preview(arr)}')
+                    else:
+                        feed_preview.append(f'{name}:type={type(arr).__name__}')
+
+                vec_values = ','.join([f'{float(v):.4f}' for v in vec.reshape(-1)])
+                action_values = ','.join([f'{float(v):.4f}' for v in action.reshape(-1)])
+
+                self.get_logger().info(
+                    f'io_debug vec_obs=[{vec_values}], '
+                    f'output_name={self.action_output_name}, '
+                    f'action=[{action_values}]'
+                )
+                self.get_logger().info(f"io_debug feed=[{'; '.join(feed_preview)}]")
+                self._last_io_debug_log_time = now
 
         if action.size >= 1:
             # 前進成分は負値を許可しない（既定ポリシー）
