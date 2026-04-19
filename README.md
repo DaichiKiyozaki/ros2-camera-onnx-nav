@@ -34,7 +34,6 @@ source ../.venv/bin/activate
 cd real-nav-ws
 source ../.venv/bin/activate
 ```
-```
 
 ## 想定する行動モデル
 
