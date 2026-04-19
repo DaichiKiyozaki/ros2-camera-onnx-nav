@@ -175,7 +175,7 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument('action_topic', default_value='/agent/cmd'),
             DeclareLaunchArgument('cmd_vel_topic', default_value='/commands/velocity'),
             DeclareLaunchArgument('linear_scale', default_value='0.65'),
-            DeclareLaunchArgument('angular_scale', default_value='0.5'),
+            DeclareLaunchArgument('angular_scale', default_value='0.65'),
             DeclareLaunchArgument('max_linear_x', default_value='0.65'),
             DeclareLaunchArgument('max_angular_z', default_value='3.14'),
             DeclareLaunchArgument('allow_backward', default_value='false'),

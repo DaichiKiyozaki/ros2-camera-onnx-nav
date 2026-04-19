@@ -197,7 +197,8 @@ ros2 run onnx_nav_pkg real_onnx_nav_node --ros-args \
 
 ### 一括起動（カメラ + セグメンテーション + AMCL + ONNX-nav）
 
-- launch ファイル: `real_nav_bringup.launch.py`
+- launch ファイル
+  - kobuki: `kobuki_real_nav_bringup.launch.py`
 - 起動対象
   - `v4l2_camera_node`
   - `img_seg_pkg/pedflow_4cls_seg_node`
@@ -210,7 +211,7 @@ source ../.venv/bin/activate
 source /opt/ros/jazzy/setup.bash
 source install/setup.bash
 
-ros2 launch onnx_nav_pkg real_nav_bringup.launch.py \
+ros2 launch onnx_nav_pkg kobuki_real_nav_bringup.launch.py \
   map:=src/onnx_nav_pkg/map/my_map.yaml \
   model_file_name:=balance.onnx \
   video_device:=/dev/video2 \
