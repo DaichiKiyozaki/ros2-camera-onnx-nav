@@ -74,6 +74,8 @@ class RealOnnxNavNode(Node):
         )
         self._warned_no_goal = False
         self._warned_no_amcl = False
+        self._goal_stop_active = False
+        self._last_goal_stop_log_time = self.get_clock().now()
 
         # 前処理
         self.frame_preprocessor = FrameStackPreprocessor(
@@ -185,6 +187,11 @@ class RealOnnxNavNode(Node):
             clicked_point_topic=self.clicked_point_topic,
         )
 
+    def _publish_stop_action(self) -> None:
+        act_msg = Float32MultiArray()
+        act_msg.data = [0.0, 0.0]
+        self.pub_act.publish(act_msg)
+
     def cb_cam(self, msg: Image) -> None:
         # 受信画像ベースで推論周期を制限（0.0=無制限）
         now_ns = self.get_clock().now().nanoseconds
@@ -225,6 +232,29 @@ class RealOnnxNavNode(Node):
                 self.get_logger().warn(f'Failed to publish debug image: {exc}')
 
         vec = self.target_tracker.compute_goal_vector(self.get_logger())
+        _, target_kind = self.target_tracker.get_target_xy(self.get_logger())
+
+        # 最終ゴールに近づいたら（同じしきい値）推論を停止し、停止コマンドをpublish
+        if self.target_tracker.robot_xyyaw is not None and vec.shape[1] >= 2:
+            distance_to_target = float(vec[0, 1])
+            if target_kind == 'goal' and distance_to_target <= self.target_tracker.waypoint_reach_threshold_m:
+                self._publish_stop_action()
+
+                now = self.get_clock().now()
+                elapsed = (now - self._last_goal_stop_log_time).nanoseconds / 1e9
+                if (not self._goal_stop_active) or elapsed >= max(0.1, self.log_period_sec):
+                    self.get_logger().info(
+                        f'inference paused near final goal: distance={distance_to_target:.3f} m, '
+                        f'threshold={self.target_tracker.waypoint_reach_threshold_m:.3f} m'
+                    )
+                    self._last_goal_stop_log_time = now
+
+                self._goal_stop_active = True
+                return
+
+        if self._goal_stop_active:
+            self.get_logger().info('inference resumed: final goal is outside threshold')
+            self._goal_stop_active = False
 
         feed = build_model_feed(
             input_names=self.input_names,
