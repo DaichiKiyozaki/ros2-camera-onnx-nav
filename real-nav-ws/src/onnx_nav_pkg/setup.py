@@ -15,6 +15,7 @@ setup(
         (os.path.join('share', package_name, 'models'), glob('models/*.onnx')),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'map'), glob('map/*')),
+        (os.path.join('share', package_name, 'urg'), glob('urg/*.yaml')),
         (os.path.join('share', package_name, 'rviz'), glob('rviz/*.rviz')),
     ],
     install_requires=['setuptools', 'onnxruntime', 'numpy', 'opencv-python'],

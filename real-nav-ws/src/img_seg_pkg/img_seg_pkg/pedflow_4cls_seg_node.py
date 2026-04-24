@@ -7,6 +7,7 @@
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import numpy as np
@@ -22,6 +23,13 @@ encoder_weights = 'imagenet'
 import segmentation_models_pytorch as smp
 import albumentations as albu
 from ultralytics import YOLO
+
+DEFAULT_PUBLISH_QUEUE_SIZE = 10
+DEFAULT_YOLO_CONFIDENCE = 0.55
+DEFAULT_YOLO_IMGSZ = 512
+DEFAULT_YOLO_VERBOSE = False
+DEFAULT_OUTPUT_WIDTH = 112
+DEFAULT_OUTPUT_HEIGHT = 84
 
 # --- 前処理関数 ---
 def get_validation_augmentation():
@@ -52,38 +60,31 @@ class Pedflow4ClsSegNode(Node):
     def __init__(self):
         super().__init__('pedflow_4cls_seg_node')
 
-        # Parameters（呼び出し時に必要に応じて上書きする）
+        # Parameters（通常運用で変更しやすい項目のみ）
         self.declare_parameter('image_topic', '/image_raw')
         self.declare_parameter('output_topic', '/gb_img')
-        self.declare_parameter('queue_size', 10)
-        self.declare_parameter('yolo_confidence', 0.55)
-        self.declare_parameter('yolo_imgsz', 512)
-        self.declare_parameter('yolo_verbose', False)
-        self.declare_parameter('out_width', 112)
-        self.declare_parameter('out_height', 84)
         self.declare_parameter('max_segmentation_hz', 10.0)
 
         self.image_topic = self.get_parameter('image_topic').value
         self.output_topic = self.get_parameter('output_topic').value
-        self.queue_size = int(self.get_parameter('queue_size').value)
-        self.confidence = float(self.get_parameter('yolo_confidence').value)
-        self.yolo_imgsz = int(self.get_parameter('yolo_imgsz').value)
-        self.yolo_verbose = bool(self.get_parameter('yolo_verbose').value)
-        self.out_width = int(self.get_parameter('out_width').value)
-        self.out_height = int(self.get_parameter('out_height').value)
         self.max_segmentation_hz = float(self.get_parameter('max_segmentation_hz').value)
+        self.confidence = DEFAULT_YOLO_CONFIDENCE
+        self.yolo_imgsz = DEFAULT_YOLO_IMGSZ
+        self.yolo_verbose = DEFAULT_YOLO_VERBOSE
+        self.out_width = DEFAULT_OUTPUT_WIDTH
+        self.out_height = DEFAULT_OUTPUT_HEIGHT
 
         if self.max_segmentation_hz < 0.0:
             raise ValueError(f"max_segmentation_hz must be >= 0.0: {self.max_segmentation_hz}")
         self._min_seg_period_sec = (1.0 / self.max_segmentation_hz) if self.max_segmentation_hz > 0.0 else 0.0
         self._last_seg_accept_ns = 0
 
-        self.publisher_ = self.create_publisher(Image, self.output_topic, self.queue_size)
+        self.publisher_ = self.create_publisher(Image, self.output_topic, DEFAULT_PUBLISH_QUEUE_SIZE)
         self.subscription = self.create_subscription(
             Image,
             self.image_topic,
             self.image_callback,
-            self.queue_size)
+            qos_profile_sensor_data)
 
         self.get_logger().info(
             f"max_segmentation_hz={self.max_segmentation_hz:.3f} (0.0 means unlimited)"

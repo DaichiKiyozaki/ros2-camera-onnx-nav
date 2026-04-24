@@ -186,7 +186,7 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument('stack_size', default_value='5'),
             DeclareLaunchArgument('max_inference_hz', default_value='10.0'),
             DeclareLaunchArgument('io_debug', default_value='false'),
-            DeclareLaunchArgument('write_model_io_file', default_value='true'),
+            DeclareLaunchArgument('write_model_io_file', default_value='false'),
             DeclareLaunchArgument('model_io_log_dir', default_value='logs/model_io'),
             DeclareLaunchArgument('model_io_log_every_n', default_value='1'),
             camera_node,

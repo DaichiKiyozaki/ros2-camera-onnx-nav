@@ -213,7 +213,7 @@ source install/setup.bash
 
 ros2 launch onnx_nav_pkg kobuki_real_nav_bringup.launch.py \
   map:=src/onnx_nav_pkg/map/my_map.yaml \
-  model_file_name:=balance.onnx \
+  model_file_name:=0419.onnx \
   video_device:=/dev/video2 \
   image_size:="[640,480]" \
   pixel_format:=YUYV \
@@ -248,7 +248,7 @@ ros2 launch onnx_nav_pkg kobuki_real_nav_bringup.launch.py \
 - `action_topic`（default: `/agent/cmd`）
 - `max_inference_hz`（default: `10.0`、0.0 は無制限）
 - `io_debug`（default: `false`、`true` で入力/出力の具体値プレビューをログ出力）
-- `waypoint_reach_threshold_m`（default: `0.4`）
+- `waypoint_reach_threshold_m`（default: `0.6`）
 
 ### 通信仕様（推論ノード）
 
